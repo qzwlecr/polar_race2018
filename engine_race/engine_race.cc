@@ -1,5 +1,6 @@
 // Copyright [2018] Alibaba Cloud All rights reserved
 #include "engine_race.h"
+#include "index/hashmap_test.h"
 
 namespace polar_race {
 
