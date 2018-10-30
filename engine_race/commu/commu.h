@@ -1,5 +1,5 @@
-#ifndef ZHWK_POLARDB_RACE_COMMU_H
-#define ZHWK_POLARDB_RACE_COMMU_H
+#ifndef ENGINE_RACE_COMMU_COMMU_H
+#define ENGINE_RACE_COMMU_COMMU_H
 
 #include <cstdint>
 #include <string>
@@ -8,7 +8,7 @@
 #include <cctype>
 #include <atomic>
 
-namespace ZHWKLib {
+namespace polar_race {
     using std::size_t;
     struct sockaddr_un mksockaddr_un(const std::string& addr);
     struct sockaddr_un mksockaddr_un(const char* addr, size_t addrlen);

@@ -1,5 +1,5 @@
-#ifndef Q_ZHWKRE_FORMAT_H
-#define Q_ZHWKRE_FORMAT_H
+#ifndef ENGINE_RACE_FORMAT_FORMAT_H
+#define ENGINE_RACE_FORMAT_FORMAT_H
 
 #include <cstdio>
 

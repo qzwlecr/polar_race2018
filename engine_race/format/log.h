@@ -1,5 +1,5 @@
-#ifndef Q_ZHWKRE_LOG_H
-#define Q_ZHWKRE_LOG_H
+#ifndef ENGINE_RACE_FORMAT_LOG_H
+#define ENGINE_RACE_FORMAT_LOG_H
 
 #include <cstdio>
 #include "format.h"
