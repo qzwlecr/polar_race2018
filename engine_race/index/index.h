@@ -11,6 +11,10 @@ namespace polar_race {
 
 		bool get(uint64_t key, uint64_t &offset);
 
+		void persist(int fd);
+
+		void unpersist(int fd);
+
 		IndexStore();
 
 		~IndexStore();
