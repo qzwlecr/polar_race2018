@@ -17,8 +17,6 @@ namespace polar_race {
 
 		IndexStore();
 
-		~IndexStore();
-
 	private:
 		AtomicUnorderedInsertMap<uint64_t, MutableAtom<uint64_t>> hashmap;
 	};

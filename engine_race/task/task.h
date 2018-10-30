@@ -6,13 +6,10 @@
 
 namespace polar_race {
 
-	extern const uint64_t CommitQueueLength;
 	extern char *CommitQueue;
 	extern bool *CommitCompletionQueue;
 	extern uint64_t WrittenIndex;
 	extern char *InternalBuffer;
-    extern const std::string VALUES_PATH;
-    extern const std::string INDECIES_PATH;
 
     extern bool ExitSign; // on true, execute exit clean proc
 

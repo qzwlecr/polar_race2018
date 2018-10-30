@@ -1,9 +1,8 @@
 #include "index.h"
 
-const int BUFFER_SIZE = 32768;
-const int HASH_MAP_SIZE = 64000000;
-
 namespace polar_race {
+	IndexStore global_index_store;
+
 	bool IndexStore::put(uint64_t key, uint64_t offset) {
 
 		auto ret = hashmap.findOrConstruct(key, [&](void *raw) {
@@ -30,10 +29,6 @@ namespace polar_race {
 		//for (;;) {
 		// TODO: Load index from disk
 		//}
-	}
-
-	IndexStore::~IndexStore() {
-
 	}
 
 	void IndexStore::persist(int fd) {
