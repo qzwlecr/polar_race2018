@@ -33,7 +33,9 @@ int Multiplexer::listen(const MailBox& mailbox){
     }
     struct epoll_event ev = {
         .events = EPOLLIN | EPOLLRDHUP,
-        .data.fd = mailbox.desc
+        .data = {
+            .fd = mailbox.desc
+        }
     };
     int rv = epoll_ctl(desc, EPOLL_CTL_ADD, mailbox.desc, &ev);
     if(rv == -1){
