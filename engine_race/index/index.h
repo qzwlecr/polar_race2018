@@ -2,6 +2,7 @@
 #define ENGINE_RACE_INDEX_INDEX_H
 
 #include <cstdint>
+#include "hashmap.h"
 
 namespace polar_race {
 	class IndexStore {
@@ -13,6 +14,9 @@ namespace polar_race {
 		IndexStore();
 
 		~IndexStore();
+
+	private:
+		AtomicUnorderedInsertMap<uint64_t, MutableAtom<uint64_t>> hashmap;
 	};
 };
 

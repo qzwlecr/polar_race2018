@@ -46,7 +46,7 @@ INCLUDE_PATH = -I./
 
 # ---------------End Dependences----------------
 
-LIB_SOURCES := $(wildcard $(SRC_PATH)/*.cc)
+LIB_SOURCES := $(wildcard $(SRC_PATH)/*.cc $(SRC_PATH)/*/*.cc)
 
 #-----------------------------------------------
 

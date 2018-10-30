@@ -282,7 +282,6 @@ struct AtomicUnorderedInsertMap {
 		return ConstIterator(*this, 0);
 	}
 
-private:
 	enum : IndexType {
 		kMaxAllocationTries = 1000, // after this we throw
 	};
@@ -337,7 +336,6 @@ private:
 
 	Allocator allocator_;
 	Slot *slots_;
-
 	IndexType keyToSlotIdx(const Key &key) const {
 		size_t h = hasher()(key);
 		h &= slotMask_;
