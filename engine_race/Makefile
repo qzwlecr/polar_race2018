@@ -125,6 +125,7 @@ $(LIBRARY): $(LIBOBJECTS)
 	
 clean:
 	rm -f $(LIBRARY)
+	rm -rf $(LIBOBJECTS)
 	rm -rf $(CLEAN_FILES)
 	rm -rf $(LIBOUTPUT)
 	find $(SRC_PATH) -maxdepth 1 -name "*.[oda]*" -exec rm -f {} \;
