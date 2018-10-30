@@ -7,12 +7,22 @@
 #include <sys/socket.h>
 #include <cctype>
 #include <atomic>
+#include "../consts/consts.h"
 
 namespace polar_race {
     using std::size_t;
     struct sockaddr_un mksockaddr_un(const std::string& addr);
     struct sockaddr_un mksockaddr_un(const char* addr, size_t addrlen);
     using Accumulator=std::atomic_uint64_t;
+    namespace RequestType {
+        const uint8_t TYPE_RD = 0;
+        const uint8_t TYPE_WR = 1;
+    };
+    struct RequestResponse {
+        uint8_t type;
+        char key[KEY_SIZE];
+        char value[VAL_SIZE];
+    };
     class MailBox {
         public:
             MailBox();
