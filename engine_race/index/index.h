@@ -20,6 +20,7 @@ namespace polar_race {
 	private:
 		AtomicUnorderedInsertMap<uint64_t, MutableAtom<uint64_t>> hashmap;
 	};
+	extern IndexStore global_index_store;
 };
 
 

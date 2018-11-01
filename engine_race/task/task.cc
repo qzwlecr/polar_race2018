@@ -2,6 +2,9 @@
 #include "../commu/commu.h"
 #include "unistd.h"
 #include "../format/log.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #if defined(__GNUC__)
 #define likely(x) (__builtin_expect((x), 1))
@@ -95,6 +98,11 @@ void RequestProcessor(string recvaddr){
     }
     struct sockaddr_un cliun = {0};
     RequestResponse rr = {0};
+    int valuesfd = ::open(VALUES_PATH.c_str(), 0);    
+    if(valuesfd == -1){
+        qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
+        abort();
+    }
     while(true){
         int gv = reqmb.getOne(reinterpret_cast<char*>(&rr),
                 sizeof(rr), &cliun);
