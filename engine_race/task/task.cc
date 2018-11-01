@@ -2,6 +2,7 @@
 #include "../commu/commu.h"
 #include "unistd.h"
 #include "../format/log.h"
+#include "../index/index.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -90,6 +91,8 @@ void HeartBeatChecker(string recvaddr){
     }
 }
 
+#define LDOMAIN(x) ((x) + 1)
+
 void RequestProcessor(string recvaddr){
     MailBox reqmb(recvaddr);
     if(unlikely(reqmb.desc == -1)){
@@ -107,14 +110,31 @@ void RequestProcessor(string recvaddr){
         int gv = reqmb.getOne(reinterpret_cast<char*>(&rr),
                 sizeof(rr), &cliun);
         if(unlikely(gv == -1)){
-            qLogFailfmt("RequestProcessor %s getRequest failed: %s", recvaddr.c_str() + 1, STRERR);
+            qLogFailfmt("RequestProcessor[%s]: getRequest failed: %s", LDOMAIN(recvaddr.c_str()), STRERR);
             return;
         }
         // simply ok..
         if(rr.type == RequestType::TYPE_RD){
-
+            uint64_t key = *reinterpret_cast<uint64_t*>(rr.key);
+            uint64_t offset = 0;
+            qLogInfofmt("RequestProcessor[%s]: RD %lx !", LDOMAIN(recvaddr.c_str()), key);
+            // look up in global index store
+            if(!global_index_store.get(key, offset)){
+                // not found
+                qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
+                rr.type = RequestType::TYPE_EEXIST;
+                int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+                if(sv == -1){
+                    qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                    abort();
+                }
+            } else {
+                // check WrittenIndex against expectedIndex
+            }
+            qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
         } else {
-
+            qLogInfofmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
+            
         }
     }
 }
