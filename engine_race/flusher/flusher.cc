@@ -3,6 +3,7 @@
 //
 
 #include <flusher/flusher.h>
+#include <index/index.h>
 
 namespace polar_race {
 	using namespace std;
@@ -41,14 +42,16 @@ namespace polar_race {
 	}
 
 	void *Flusher::flush() {
-		int fd = open(VALUES_PATH.c_str(), O_APPEND | O_SYNC | O_CREAT | O_DIRECT);
+		int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT);
 		while (1) {
 			while (internal_buffer_index != INTERNAL_BUFFER_LENGTH && !UNLIKELY(ExitSign));
 			if (UNLIKELY(ExitSign)) {
 				while (!last_flush);
 				write(fd, InternalBuffer, internal_buffer_index * 4096);
 				WrittenIndex += internal_buffer_index;
-				//TODO: Serialize hash table before exit.
+				int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR);
+				global_index_store.persist(index_fd);
+				close(index_fd);
 				close(fd);
 				exit(0);
 			}
