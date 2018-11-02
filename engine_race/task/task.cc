@@ -12,6 +12,7 @@
 #define unlikely(x) (x)
 #endif
 
+#define LDOMAIN(x) ((x) + 1)
 
 using namespace std;
 
@@ -26,6 +27,7 @@ namespace polar_race {
 #define STRERR (strerror(errno))
 
     void HeartBeater(string sendaddr, bool *running) {
+        qLogInfofmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
         MailBox hbmb;
         if (unlikely(hbmb.open() == -1)) {
             qLogFailfmt("HeartBeat MailBox open failed: %s", strerror(errno));
@@ -45,6 +47,7 @@ namespace polar_race {
     void HeartBeatChecker(string recvaddr) {
         // ENSURE
         ExitSign = false;
+        qLogInfofmt("HeartBeater: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (unlikely(hbcmb.desc == -1)) {
             qLogFailfmt("HeartBeatChecker MailBox open failed: %s", strerror(errno));
@@ -60,10 +63,9 @@ namespace polar_race {
             qLogFailfmt("HeartBeatChecker Multiplexer listen HBMailBox failed: %s", STRERR);
             abort();
         }
-        MailBox successer;
         uint32_t hbmagic = 0;
         while (true) {
-            int rv = mp.wait(&successer, 1, 2000);
+            int rv = mp.wait(&hbcmb, 1, 3000);
             if (unlikely(rv == -1)) {
                 qLogFailfmt("HeartBeatChecker Multiplexer Wait Failed: %s", STRERR);
                 if (errno != EINTR) {
@@ -72,6 +74,7 @@ namespace polar_race {
                 continue;
             }
             if (unlikely(rv == 0)) {
+                qLogFail("HeartBeatChecker: Timed out.");
                 // timed out!
                 ExitSign = true;
                 // do clean work
@@ -80,6 +83,7 @@ namespace polar_race {
                 return;
             }
             // not very ok exactly..
+            qLogDebug("HeartBeatChecker: beat!");
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
             if (unlikely(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
@@ -91,7 +95,6 @@ namespace polar_race {
         }
     }
 
-#define LDOMAIN(x) ((x) + 1)
 #define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
 
     void RequestProcessor(string recvaddr) {
