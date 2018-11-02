@@ -221,6 +221,8 @@ namespace polar_race {
                        rr.value, VAL_SIZE);
                 // set CanCommit
                 *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) = true;
+                qLogDebugfmt("RequestProcessor[%s]: CommitCompletionQueue state SET (now %d).", LDOMAIN(recvaddr.c_str()),
+                        *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
                 // flush OK.
                 // wait it gets flush'd
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
