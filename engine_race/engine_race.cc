@@ -48,9 +48,13 @@ namespace polar_race {
         *eptr = NULL;
         EngineRace *engine_race = new EngineRace(name);
         qLogInfofmt("Startup: EngineName %s", name.c_str());
+        qLogInfofmt("Startup: Pre-Creating %s to prevent Hander gg..", VALUES_PATH.c_str());
+        if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
+            creat(VALUES_PATH.c_str(), 0666);
+        }
         qLogInfofmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
-            recvaddres[i] = REQ_ADDR_PREFIX + ItoS(i);
+            recvaddres[i] = string(REQ_ADDR_PREFIX) + ItoS(i);
             rsaddr[i] = mksockaddr_un(recvaddres[i]);
         }
         qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
@@ -73,10 +77,10 @@ namespace polar_race {
         if (fork()) {
             // parent
             qLogInfo("Startup: FORK completed.");
+            qLogInfo("Startup: wait ReqHandler startup complete.");
             qLogInfo("Startup: HeartBeat thread.");
             thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
-            qLogInfo("Startup: wait ReqHandler startup complete.");
             while (start_ok == false);
             qLogInfo("Startup: Everything OK.");
         } else {

@@ -16,8 +16,8 @@ namespace polar_race {
 
     extern Accumulator NextIndex;
 
-    const std::string HB_ADDR = "\0ralopdb/heartbeat";
-    const std::string REQ_ADDR_PREFIX = "\0ralopdb/request/";
+    const std::string HB_ADDR = std::string() + '\0' + "ralopdb/heartbeat";
+    const std::string REQ_ADDR_PREFIX = std::string() + '\0' + "ralopdb/request/";
 
     void RequestProcessor(std::string recvaddr);
 
