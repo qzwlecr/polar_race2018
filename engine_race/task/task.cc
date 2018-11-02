@@ -18,7 +18,7 @@ using namespace std;
 
 namespace polar_race {
 
-    bool ExitSign = false;
+    volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
 
@@ -70,9 +70,6 @@ namespace polar_race {
             int rv = mp.wait(&successer, 1, 3000);
             if (unlikely(rv == -1)) {
                 qLogFailfmt("HeartBeatChecker Multiplexer Wait Failed: %s", STRERR);
-                if (errno != EINTR) {
-                    abort();
-                }
                 continue;
             }
             if (unlikely(rv == 0)) {

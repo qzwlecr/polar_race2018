@@ -14,6 +14,7 @@
 extern "C"{
     #include "signames.h"
 #include "signal.h"
+#include <sys/stat.h>
 }
 
 using namespace std;
@@ -66,6 +67,16 @@ namespace polar_race {
         qLogInfofmt("Startup: Pre-Creating %s to prevent Hander gg..", VALUES_PATH.c_str());
         if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
             creat(VALUES_PATH.c_str(), 0666);
+        } else {
+            struct stat valfstat = {0};
+            int sv = stat(VALUES_PATH.c_str(), &valfstat);
+            if(sv != 0){
+                qLogFailfmt("Startup: Values file exist, but unable to get its size: %s", strerror(errno));
+                abort();
+            }
+            qLogInfofmt("Startup: Set file size to %lu", valfstat.st_size);
+            WrittenIndex = valfstat.st_size;
+            NextIndex = valfstat.st_size;
         }
         qLogInfofmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {

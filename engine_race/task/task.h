@@ -12,7 +12,7 @@ namespace polar_race {
     extern volatile uint64_t WrittenIndex;
     extern char *InternalBuffer;
 
-    extern bool ExitSign; // on true, execute exit clean proc
+    extern volatile bool ExitSign; // on true, execute exit clean proc
 
     extern Accumulator NextIndex;
 
