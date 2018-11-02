@@ -1,4 +1,5 @@
-#include "index.h"
+#include <consts/consts.h>
+#include <index/index.h>
 
 namespace polar_race {
 	IndexStore global_index_store;
