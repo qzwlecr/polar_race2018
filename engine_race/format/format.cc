@@ -1,5 +1,7 @@
 #include "format.h"
 
+std::mutex logMu;
+
 void qfmtColor(const char *c) {
     printf("\x1b%s", c);
 }

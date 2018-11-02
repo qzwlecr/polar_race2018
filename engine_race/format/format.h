@@ -2,6 +2,7 @@
 #define ENGINE_RACE_FORMAT_FORMAT_H
 
 #include <cstdio>
+#include <mutex>
 
 #define Q_ESCAPE_CHAR "\x1b"
 #define Q_FMT_APPLY(x) Q_ESCAPE_CHAR x
@@ -15,6 +16,8 @@
 #define Q_COLOR_MAGENTA "[35m" // purple-like
 #define Q_COLOR_CYAN "[36m"
 #define Q_COLOR_WHITE "[37m"
+
+extern std::mutex logMu;
 
 // functions for better usage?
 void qfmtColor(const char *color_const);
