@@ -92,6 +92,7 @@ void HeartBeatChecker(string recvaddr){
 }
 
 #define LDOMAIN(x) ((x) + 1)
+#define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
 
 void RequestProcessor(string recvaddr){
     MailBox reqmb(recvaddr);
@@ -101,7 +102,7 @@ void RequestProcessor(string recvaddr){
     }
     struct sockaddr_un cliun = {0};
     RequestResponse rr = {0};
-    int valuesfd = ::open(VALUES_PATH.c_str(), 0);    
+    int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME);    
     if(valuesfd == -1){
         qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
         abort();
@@ -116,10 +117,10 @@ void RequestProcessor(string recvaddr){
         // simply ok..
         if(rr.type == RequestType::TYPE_RD){
             uint64_t key = *reinterpret_cast<uint64_t*>(rr.key);
-            uint64_t offset = 0;
+            uint64_t file_offset = 0;
             qLogInfofmt("RequestProcessor[%s]: RD %lx !", LDOMAIN(recvaddr.c_str()), key);
             // look up in global index store
-            if(!global_index_store.get(key, offset)){
+            if(!global_index_store.get(key, file_offset)){
                 // not found
                 qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                 rr.type = RequestType::TYPE_EEXIST;
@@ -130,6 +131,10 @@ void RequestProcessor(string recvaddr){
                 }
             } else {
                 // check WrittenIndex against expectedIndex
+                if(file_offset > WrittenIndex){
+                    // read from internal buffer
+                    memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset, INTERNAL_BUFFER_LENGTH), VAL_SIZE);
+                }
             }
             qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
         } else {
