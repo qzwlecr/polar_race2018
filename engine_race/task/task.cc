@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "../consts/consts.h"
 
 #if defined(__GNUC__)
 #define likely(x) (__builtin_expect((x), 1))
@@ -22,6 +23,8 @@ using namespace polar_race;
 bool polar_race::ExitSign = false;
 
 const uint32_t HB_MAGIC = 0x8088;
+
+Accumulator polar_race::NextIndex(0);
 
 #define STRERR (strerror(errno))
 
@@ -133,13 +136,84 @@ void RequestProcessor(string recvaddr){
                 // check WrittenIndex against expectedIndex
                 if(file_offset > WrittenIndex){
                     // read from internal buffer
-                    memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset, INTERNAL_BUFFER_LENGTH), VAL_SIZE);
+                    memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset, BUFFER_SIZE), VAL_SIZE);
+                    // check WrittenIndex again
+                    if(file_offset > WrittenIndex){
+                        // then we should return it
+                        qLogInfofmt("RequestProcessor[%s]: Value found on InternalBuffer", LDOMAIN(recvaddr.c_str()));
+                        rr.type = RequestType::TYPE_OK;
+                        int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+                        if(sv == -1){
+                            qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                            abort();
+                        }
+                        qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                        continue;
+                    }
+                }
+                // that means we should read it from file
+                int seekv = lseek(valuesfd, file_offset, SEEK_SET);
+                if(seekv == -1){
+                    qLogWarnfmt("RequestProcessor[%s]: lseek failed: %s, treated as NOT FOUND.", LDOMAIN(recvaddr.c_str()), STRERR);
+                    qLogWarnfmt("RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.", LDOMAIN(recvaddr.c_str()));
+                    qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!", LDOMAIN(recvaddr.c_str()));
+                    rr.type = RequestType::TYPE_EEXIST;
+                    int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+                    if(sv == -1){
+                        qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                        abort();
+                    }
+                } else {
+                    // read things off it
+                    ssize_t rdv = read(valuesfd, rr.value, VAL_SIZE);
+                    if(rdv != VAL_SIZE){
+                        qLogWarnfmt("RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.", LDOMAIN(recvaddr.c_str()), STRERR, rdv);
+                        qLogWarnfmt("RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.", LDOMAIN(recvaddr.c_str()));
+                        qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!", LDOMAIN(recvaddr.c_str()));
+                        rr.type = RequestType::TYPE_EEXIST;
+                        int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+                        if(sv == -1){
+                            qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                            abort();
+                        }
+                    } else {
+                        // read OK.
+                        // release the spyce!
+                        qLogInfofmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
+                        rr.type = RequestType::TYPE_OK;
+                        int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+                        if(sv == -1){
+                            qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                            abort();
+                        }
+                    }
                 }
             }
             qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
         } else {
             qLogInfofmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
-            
+            // get New Index
+            uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
+            // put into GlobIdx
+            global_index_store.put(*reinterpret_cast<uint64_t*>(rr.key), file_offset);
+            while(*LARRAY_ACCESS(CommitCompletionQueue, file_offset/VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
+            // flush into CommitQueue
+            memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
+                    rr.value, VAL_SIZE);
+            // set CanCommit
+            *LARRAY_ACCESS(CommitCompletionQueue, file_offset/VAL_SIZE, COMMIT_QUEUE_LENGTH) = true;
+            // flush OK.
+            // wait it gets flush'd
+            while(*LARRAY_ACCESS(CommitCompletionQueue, file_offset/VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
+            // generate return information.
+            qLogInfofmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
+            rr.type = RequestType::TYPE_OK;
+            int sv = reqmb.sendOne(reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &cliun);
+            if(sv == -1){
+                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                abort();
+            }
+            qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
         }
     }
 }

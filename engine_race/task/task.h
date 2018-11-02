@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include "../commu/commu.h"
 
 namespace polar_race {
 
@@ -12,6 +13,8 @@ namespace polar_race {
 	extern char *InternalBuffer;
 
     extern bool ExitSign; // on true, execute exit clean proc
+
+    extern Accumulator NextIndex;
 
     const std::string HB_ADDR = "\0ralopdb/heartbeat";
     const std::string REQ_ADDR_PREFIX = "\0ralopdb/request/";
