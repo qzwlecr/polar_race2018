@@ -159,80 +159,80 @@ void randomRead(Engine* engine, const threadsafe_vector<std::string>& keys, unsi
     }
 }
 
-class MyVisitor : public Visitor
-{
-public:
-    MyVisitor(const threadsafe_vector<std::string>& keys, unsigned start, unsigned& cnt)
-        : mKeys(keys), mStart(start), mCnt(cnt)
-    {}
+//class MyVisitor : public Visitor
+//{
+//public:
+//    MyVisitor(const threadsafe_vector<std::string>& keys, unsigned start, unsigned& cnt)
+//        : mKeys(keys), mStart(start), mCnt(cnt)
+//    {}
+//
+//    ~MyVisitor() {}
+//
+//    void Visit(const PolarString& key, const PolarString& value)
+//    {
+//        if (key != key_from_value(value.ToString())) {
+//            std::cout << "Sequential Read error: key and value not match" << std::endl;
+//            exit(-1);
+//        }
+//        if (key != mKeys[mStart + mCnt]) {
+//            std::cout << "Sequential Read error: not an expected key" << std::endl;
+//            exit(-1);
+//        }
+//        mCnt += 1;
+//    }
+//
+//private:
+//    const threadsafe_vector<std::string>& mKeys;
+//    unsigned mStart;
+//    unsigned& mCnt;
+//};
 
-    ~MyVisitor() {}
-
-    void Visit(const PolarString& key, const PolarString& value)
-    {
-        if (key != key_from_value(value.ToString())) {
-            std::cout << "Sequential Read error: key and value not match" << std::endl;
-            exit(-1);
-        }
-        if (key != mKeys[mStart + mCnt]) {
-            std::cout << "Sequential Read error: not an expected key" << std::endl;
-            exit(-1);
-        }
-        mCnt += 1;
-    }
-    
-private:
-    const threadsafe_vector<std::string>& mKeys;
-    unsigned mStart;
-    unsigned& mCnt;
-};
-
-void sequentialRead(Engine* engine, const threadsafe_vector<std::string>& keys)
-{
-    RandNum_generator rng(0, keys.size() - 1);
-    RandNum_generator rng1(10, 100);
-    
-    unsigned lenKeys = keys.size();
-    // Random ranges
-    unsigned lenAccu = 0;
-    while (lenAccu < lenKeys) {
-        std::string lower, upper;
-        
-        unsigned start = rng.nextNum();
-        lower = keys[start];
-        
-        unsigned len = rng1.nextNum();
-        if (start + len >= lenKeys) {
-            len = lenKeys - start; 
-        }
-        if (start + len == lenKeys) {
-            upper = "";
-        } else {
-            upper = keys[start + len];
-        }
-        
-        unsigned keyCnt = 0;
-        MyVisitor visitor(keys, start, keyCnt);
-        engine->Range(lower, upper, visitor);
-        if (keyCnt != len) {
-            std::cout << "Range size not match, expected: " << len
-                      << " actual: " << keyCnt << std::endl;
-            exit(-1);
-        }
-        
-        lenAccu += len;
-    }
-    
-    // Whole range traversal
-    unsigned keyCnt = 0;
-    MyVisitor visitor(keys, 0, keyCnt);
-    engine->Range("", "", visitor);
-    if (keyCnt != lenKeys) {
-        std::cout << "Range size not match, expected: " << lenKeys
-                  << " actual: " << keyCnt << std::endl;
-        exit(-1);
-    }
-}
+//void sequentialRead(Engine* engine, const threadsafe_vector<std::string>& keys)
+//{
+//    RandNum_generator rng(0, keys.size() - 1);
+//    RandNum_generator rng1(10, 100);
+//
+//    unsigned lenKeys = keys.size();
+//    // Random ranges
+//    unsigned lenAccu = 0;
+//    while (lenAccu < lenKeys) {
+//        std::string lower, upper;
+//
+//        unsigned start = rng.nextNum();
+//        lower = keys[start];
+//
+//        unsigned len = rng1.nextNum();
+//        if (start + len >= lenKeys) {
+//            len = lenKeys - start;
+//        }
+//        if (start + len == lenKeys) {
+//            upper = "";
+//        } else {
+//            upper = keys[start + len];
+//        }
+//
+//        unsigned keyCnt = 0;
+//        MyVisitor visitor(keys, start, keyCnt);
+//        engine->Range(lower, upper, visitor);
+//        if (keyCnt != len) {
+//            std::cout << "Range size not match, expected: " << len
+//                      << " actual: " << keyCnt << std::endl;
+//            exit(-1);
+//        }
+//
+//        lenAccu += len;
+//    }
+//
+//    // Whole range traversal
+//    unsigned keyCnt = 0;
+//    MyVisitor visitor(keys, 0, keyCnt);
+//    engine->Range("", "", visitor);
+//    if (keyCnt != lenKeys) {
+//        std::cout << "Range size not match, expected: " << lenKeys
+//                  << " actual: " << keyCnt << std::endl;
+//        exit(-1);
+//    }
+//}
 
 int main()
 {
@@ -267,7 +267,7 @@ int main()
     std::sort(keys.begin(), keys.end());
     auto last = std::unique(keys.begin(), keys.end());
     keys.erase(last, keys.end());
-    std::cout << engine->size() << " == " << keys.size() << std::endl;
+    //std::cout << engine->size() << " == " << keys.size() << std::endl;
     
     
     // Random Read
@@ -289,23 +289,23 @@ int main()
               << " milliseconds" << std::endl;
     
     
-    // Sequential Read
-    auto sreadStart = std::chrono::high_resolution_clock::now();
-    
-    std::vector<std::thread> sreaders;
-    for (int i = 0; i < numThreads; ++i) {
-        sreaders.emplace_back(std::thread(sequentialRead, engine, std::cref(keys)));
-    }
-    for (auto& th : sreaders) {
-        th.join();
-    }
-    sreaders.clear();
-    
-    auto sreadEnd = std::chrono::high_resolution_clock::now();
-    std::cout << "Sequential read takes: "
-              << std::chrono::duration<double, std::milli>(sreadEnd - sreadStart).count()
-              << " milliseconds" << std::endl;
-    
+//    // Sequential Read
+//    auto sreadStart = std::chrono::high_resolution_clock::now();
+//
+//    std::vector<std::thread> sreaders;
+//    for (int i = 0; i < numThreads; ++i) {
+//        sreaders.emplace_back(std::thread(sequentialRead, engine, std::cref(keys)));
+//    }
+//    for (auto& th : sreaders) {
+//        th.join();
+//    }
+//    sreaders.clear();
+//
+//    auto sreadEnd = std::chrono::high_resolution_clock::now();
+//    std::cout << "Sequential read takes: "
+//              << std::chrono::duration<double, std::milli>(sreadEnd - sreadStart).count()
+//              << " milliseconds" << std::endl;
+//
     delete engine;
 
     return 0;
