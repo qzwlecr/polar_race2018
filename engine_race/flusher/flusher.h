@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <thread>
 #include <unistd.h>
+#include <cstring>
 #include <consts/consts.h>
 #include <fcntl.h>
 
@@ -31,8 +32,9 @@ namespace polar_race {
 
 		void *flush();
 
-		uint64_t internal_buffer_index;
+		uint64_t internal_buffer_index = 0;
 		bool last_flush = false;
+		uint32_t internal_buffer_part = 0;
 
 	};
 }
