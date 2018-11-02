@@ -35,8 +35,8 @@ namespace polar_race {
         while (*running) {
             if (unlikely(hbmb.sendOne(reinterpret_cast<const char *>(&HB_MAGIC),
                                       sizeof(HB_MAGIC), &un_sendaddr) == -1)) {
-                qLogFailfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));
-                abort();
+                qLogWarnfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));
+                /* abort(); */
             }
             sleep(1);
         }
