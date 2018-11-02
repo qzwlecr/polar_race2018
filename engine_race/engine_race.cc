@@ -7,8 +7,20 @@
 #include <thread>
 #include "flusher/flusher.h"
 #include "index/index.h"
+#include <cstdio>
+extern "C"{
+    #include "signames.h"
+#include "signal.h"
+}
 
 using namespace std;
+
+#define FAILED_TEXT "[  " Q_FMT_APPLY(Q_COLOR_RED) "FAIL" Q_FMT_APPLY(Q_COLOR_RESET) "  ]"
+
+void signal_handler(int sig){
+    fprintf(stderr, "%s received signal %s: %s\n", FAILED_TEXT, signal_names[sig], strsignal(sig));
+    exit(-1);
+}
 
 namespace polar_race {
 
@@ -87,6 +99,12 @@ namespace polar_race {
         } else {
             // child
             qLogInfo("RequestHandler: FORK completed.");
+            qLogInfo("RequestHandler: Setup termination detector.");
+            signal(SIGABRT, signal_handler);
+            signal(SIGFPE, signal_handler);
+            signal(SIGINT, signal_handler);
+            signal(SIGSEGV, signal_handler);
+            signal(SIGTERM, signal_handler);
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
