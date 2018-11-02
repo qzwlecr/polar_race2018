@@ -78,10 +78,10 @@ namespace polar_race {
             // parent
             qLogInfo("Startup: FORK completed.");
             qLogInfo("Startup: wait ReqHandler startup complete.");
+            while (start_ok == false);
             qLogInfo("Startup: HeartBeat thread.");
             thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
-            while (start_ok == false);
             qLogInfo("Startup: Everything OK.");
         } else {
             // child

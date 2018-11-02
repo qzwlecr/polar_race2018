@@ -116,5 +116,7 @@ modules.xml
 .idea/*
 
 *.json
+test
+test_with_kill
 
 # End of https://www.gitignore.io/api/c++,jetbrains
