@@ -3,6 +3,7 @@
 #include "../format/log.h"
 #include "../index/index.h"
 #include <fcntl.h>
+#include <iostream>
 
 #if defined(__GNUC__)
 #define likely(x) (__builtin_expect((x), 1))
@@ -14,10 +15,10 @@
 
 #define LDOMAIN(x) ((x) + 1)
 
-using namespace std;
 
 namespace polar_race {
 
+    using namespace std;
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
@@ -95,6 +96,13 @@ namespace polar_race {
     }
 
 #define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
+    
+    void printArr(const char* arr){
+        auto parr = reinterpret_cast<const uint16_t*>(arr);
+        for(int i = 0; i < 4; i++){
+            cout << parr[i] << " ";
+        }
+    }
 
     void RequestProcessor(string recvaddr) {
         MailBox reqmb(recvaddr);
@@ -121,6 +129,9 @@ namespace polar_race {
                 uint64_t key = *reinterpret_cast<uint64_t *>(rr.key);
                 uint64_t file_offset = 0;
                 qLogInfofmt("RequestProcessor[%s]: RD %lx !", LDOMAIN(recvaddr.c_str()), key);
+                cout << "RequestProcessor RD [";
+                printArr(rr.key);
+                cout << "]" << endl;
                 // look up in global index store
                 if (!global_index_store.get(key, file_offset)) {
                     // not found
@@ -132,6 +143,7 @@ namespace polar_race {
                         abort();
                     }
                 } else {
+                    cout << "RequestProcessor file_offset " << file_offset << endl;
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
@@ -191,6 +203,9 @@ namespace polar_race {
                         } else {
                             // read OK.
                             // release the spyce!
+                            cout << "ReadRequest Value [";
+                            printArr(rr.value);
+                            cout << "]" << endl;
                             qLogInfofmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
                             rr.type = RequestType::TYPE_OK;
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);

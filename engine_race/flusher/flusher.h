@@ -12,6 +12,7 @@
 #include <consts/consts.h>
 #include <fcntl.h>
 #include <format/log.h>
+#include <task/task.h>
 
 namespace polar_race {
 
@@ -22,7 +23,6 @@ namespace polar_race {
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
 #endif
-    extern bool ExitSign;
 
     class Flusher {
     public:
