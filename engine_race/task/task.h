@@ -8,7 +8,7 @@
 namespace polar_race {
 
     extern char CommitQueue[COMMIT_QUEUE_LENGTH * 4096];
-    extern bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
+    extern volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     extern uint64_t WrittenIndex;
     extern char *InternalBuffer;
 

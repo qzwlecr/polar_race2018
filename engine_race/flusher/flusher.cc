@@ -8,7 +8,7 @@
 namespace polar_race {
     using namespace std;
     char CommitQueue[COMMIT_QUEUE_LENGTH * 4096];
-    bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
+    volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     uint64_t WrittenIndex;
     char *InternalBuffer;
     char RealInternalBuffer[INTERNAL_BUFFER_LENGTH * 2];
@@ -26,13 +26,12 @@ namespace polar_race {
         for (uint64_t index = 0;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
-            qLogDebugfmt("zlc: CompletionQueue:%d %d", index, CommitCompletionQueue[index]);
-            while (CommitCompletionQueue[index] == 0)
+            while (CommitCompletionQueue[index] == 0) {
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
                     return nullptr;
                 }
-            qLogDebugfmt("zlc:%ul %d", index, ExitSign);
+            }
             while (internal_buffer_index == INTERNAL_BUFFER_LENGTH);
             memcpy(InternalBuffer + internal_buffer_index * 4096,
                    CommitQueue + index * 4096,
