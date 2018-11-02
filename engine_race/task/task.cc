@@ -67,9 +67,7 @@ namespace polar_race {
         MailBox successer;
         uint32_t hbmagic = 0;
         while (true) {
-            qLogDebug("HeartBeatChecker: remux");
             int rv = mp.wait(&successer, 1, 3000);
-            qLogDebugfmt("HeartBeatChecker: rv %d", rv);
             if (unlikely(rv == -1)) {
                 qLogFailfmt("HeartBeatChecker Multiplexer Wait Failed: %s", STRERR);
                 if (errno != EINTR) {
@@ -87,9 +85,8 @@ namespace polar_race {
                 return;
             }
             // not very ok exactly..
-            qLogDebug("HeartBeatChecker: demux");
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
-            qLogDebug("HeartBeatChecker: beat!");
+            qLogInfo("HeartBeatChecker: beat!");
             if (unlikely(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
                 ExitSign = true;

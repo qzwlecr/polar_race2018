@@ -11,6 +11,7 @@
 #include <cstring>
 #include <consts/consts.h>
 #include <fcntl.h>
+#include <format/log.h>
 
 namespace polar_race {
 

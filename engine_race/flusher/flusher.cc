@@ -26,11 +26,13 @@ namespace polar_race {
         for (uint64_t index = 0;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
+            qLogDebugfmt("zlc: CompletionQueue:%d %d", index, CommitCompletionQueue[index]);
             while (CommitCompletionQueue[index] == 0)
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
                     return nullptr;
                 }
+            qLogDebugfmt("zlc:%ul %d", index, ExitSign);
             while (internal_buffer_index == INTERNAL_BUFFER_LENGTH);
             memcpy(InternalBuffer + internal_buffer_index * 4096,
                    CommitQueue + index * 4096,

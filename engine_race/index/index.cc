@@ -47,6 +47,9 @@ namespace polar_race {
             memcpy(store + index, &value, 8);
             index += 8;
         }
+        if (index != 0) {
+            write(fd, store, index);
+        }
         return;
     }
 
