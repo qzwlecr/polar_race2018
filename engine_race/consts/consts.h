@@ -15,7 +15,7 @@ namespace polar_race {
 	const uint64_t INTERNAL_BUFFER_LENGTH = 512 * 4096;
 	const std::string VALUES_PATH = "./ralopdb.dat";
 	const std::string INDECIES_PATH = "./ralopdb_index.dat";
-
+    const int UDS_CONGEST_AMPLIFIER = 2;
 };
 
 #endif

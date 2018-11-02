@@ -24,14 +24,14 @@ Accumulator polar_race::NextIndex(0);
 
 #define STRERR (strerror(errno))
 
-void HeartBeater(string sendaddr) {
+void HeartBeater(string sendaddr, bool* running) {
 	MailBox hbmb;
 	if (unlikely(hbmb.open() == -1)) {
 		qLogFailfmt("HeartBeat MailBox open failed: %s", strerror(errno));
 		abort();
 	}
 	struct sockaddr_un un_sendaddr = mksockaddr_un(sendaddr);
-	while (true) {
+	while (*running) {
 		if (unlikely(hbmb.sendOne(reinterpret_cast<const char *>(&HB_MAGIC),
 		                          sizeof(HB_MAGIC), &un_sendaddr) == -1)) {
 			qLogFailfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));

@@ -21,7 +21,7 @@ namespace polar_race {
 
 	void RequestProcessor(std::string recvaddr);
 
-	void HeartBeater(std::string sendaddr);
+	void HeartBeater(std::string sendaddr, bool* runstate);
 
 	void HeartBeatChecker(std::string recvaddr);
 
