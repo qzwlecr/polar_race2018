@@ -59,8 +59,9 @@ namespace polar_race {
         }
         qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
         for (int i = 0; i < UDS_NUM; i++) {
-            int sv = requestfds[i].open();
-            if (sv == -1) {
+            string sndaddr = string(RESP_ADDR_PREFIX) + ItoS(i);
+            requestfds[i] = MailBox(sndaddr);
+            if (requestfds[i].desc == -1) {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }

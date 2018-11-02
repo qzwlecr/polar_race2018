@@ -18,6 +18,7 @@ namespace polar_race {
 
     const std::string HB_ADDR = (std::string() + '\0') + "ralopdb/heartbeat";
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
+    const std::string RESP_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/respond/";
 
     void RequestProcessor(std::string recvaddr);
 
