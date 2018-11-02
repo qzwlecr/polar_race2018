@@ -17,33 +17,30 @@ using namespace polar_race;
 
 class DumpVisitor : public Visitor {
 public:
-  DumpVisitor(int* kcnt)
-    : key_cnt_(kcnt) {}
+    DumpVisitor(int *kcnt)
+            : key_cnt_(kcnt) {}
 
-  ~DumpVisitor() {}
+    ~DumpVisitor() {}
 
-  void Visit(const PolarString& key, const PolarString& value) {
-    printf("Visit %s --> %s\n", key.data(), value.data());
-    (*key_cnt_)++;
-  }
-  
+    void Visit(const PolarString &key, const PolarString &value) {
+        printf("Visit %s --> %s\n", key.data(), value.data());
+        (*key_cnt_)++;
+    }
+
 private:
-  int* key_cnt_;
+    int *key_cnt_;
 };
 
 
-template <typename T>
-class threadsafe_vector : public std::vector<T>
-{
+template<typename T>
+class threadsafe_vector : public std::vector<T> {
 public:
-    void add(const T& val)
-    {
+    void add(const T &val) {
         std::lock_guard<std::mutex> lock(mMutex);
         this->push_back(val);
     }
 
-    void add(T&& val)
-    {
+    void add(T &&val) {
         std::lock_guard<std::mutex> lock(mMutex);
         this->emplace_back(val);
     }
@@ -52,47 +49,42 @@ private:
     mutable std::mutex mMutex;
 };
 
-class RandNum_generator
-{
+class RandNum_generator {
 private:
-    RandNum_generator(const RandNum_generator&) = delete;
-    RandNum_generator& operator=(const RandNum_generator&) = delete;
+    RandNum_generator(const RandNum_generator &) = delete;
+
+    RandNum_generator &operator=(const RandNum_generator &) = delete;
+
     std::uniform_int_distribution<unsigned> u;
     std::default_random_engine e;
     int mStart, mEnd;
 public:
     // [start, end], inclusive, uniformally distributed
     RandNum_generator(int start, int end)
-        : u(start, end)
-        , e(std::hash<std::thread::id>()(std::this_thread::get_id()))
-        , mStart(start), mEnd(end)
-    {}
+            : u(start, end), e(std::hash<std::thread::id>()(std::this_thread::get_id())), mStart(start), mEnd(end) {}
 
     // [mStart, mEnd], inclusive
-    unsigned nextNum()
-    {
+    unsigned nextNum() {
         return u(e);
     }
 
     // [0, max], inclusive
-    unsigned nextNum(unsigned max)
-    {
+    unsigned nextNum(unsigned max) {
         return unsigned((u(e) - mStart) / float(mEnd - mStart) * max);
     }
 };
 
-std::string random_str(RandNum_generator& rng, std::size_t strLen)
-{
+std::string random_str(RandNum_generator &rng, std::size_t strLen) {
     std::string rs(strLen, ' ');
-    for (auto& ch : rs) {
+    for (auto &ch : rs) {
         ch = rng.nextNum();
     }
     return rs;
 }
 
 typedef unsigned long long hash64_t;
-hash64_t fnv1_hash_64(const std::string& str)
-{
+
+hash64_t fnv1_hash_64(const std::string &str) {
     static const hash64_t fnv_offset_basis = 14695981039346656037u;
     static const hash64_t fnv_prime = 1099511628211u;
     hash64_t hv = fnv_offset_basis;
@@ -103,8 +95,7 @@ hash64_t fnv1_hash_64(const std::string& str)
     return hv;
 }
 
-std::string hash_to_str(hash64_t hash)
-{
+std::string hash_to_str(hash64_t hash) {
     const int cnt = 8;
     char val[cnt];
     for (int i = 0; i < cnt; ++i) {
@@ -114,10 +105,9 @@ std::string hash_to_str(hash64_t hash)
     return std::string(val, cnt);
 }
 
-std::string key_from_value(const std::string& val)
-{
+std::string key_from_value(const std::string &val) {
     std::string key(8, ' ');
-    
+
     key[0] = val[729];
     key[1] = val[839];
     key[2] = val[25];
@@ -126,29 +116,27 @@ std::string key_from_value(const std::string& val)
     key[5] = val[1826];
     key[6] = val[369];
     key[7] = val[2903];
-    
+
     return key;
 }
 
-void write(Engine* engine, threadsafe_vector<std::string>& keys, unsigned numWrite)
-{
+void write(Engine *engine, threadsafe_vector<std::string> &keys, unsigned numWrite) {
     RandNum_generator rng(0, 255);
     for (unsigned i = 0; i < numWrite; ++i) {
         std::string val(random_str(rng, 4096));
-        
+
         //std::string key = hash_to_str(fnv1_hash_64(val)); // strong hash, slow but barely any chance to duplicate
         std::string key(key_from_value(val)); // random positions, faster but tiny chance to duplicate
-        
+
         engine->Write(key, val);
         keys.add(key);
     }
 }
 
-void randomRead(Engine* engine, const threadsafe_vector<std::string>& keys, unsigned numRead)
-{
+void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsigned numRead) {
     RandNum_generator rng(0, keys.size() - 1);
     for (unsigned i = 0; i < numRead; ++i) {
-        auto& key = keys[rng.nextNum()];
+        auto &key = keys[rng.nextNum()];
         std::string val;
         engine->Read(key, &val);
         //if (key != hash_to_str(fnv1_hash_64(val)) {
@@ -234,61 +222,60 @@ void randomRead(Engine* engine, const threadsafe_vector<std::string>& keys, unsi
 //    }
 //}
 
-int main()
-{
+int main() {
     auto numThreads = std::thread::hardware_concurrency();
     std::cout << numThreads << std::endl;
-    
+
     Engine *engine = NULL;
     RetCode ret = Engine::Open(kEnginePath, &engine);
     assert (ret == kSucc);
-    
+
     threadsafe_vector<std::string> keys;
-    
+
     // Write
     auto writeStart = std::chrono::high_resolution_clock::now();
-    
+
     unsigned numWrite = 10000;
     std::vector<std::thread> writers;
     for (int i = 0; i < numThreads; ++i) {
         writers.emplace_back(std::thread(write, engine, std::ref(keys), numWrite));
     }
-    for (auto& th : writers) {
+    for (auto &th : writers) {
         th.join();
     }
     writers.clear();
-    
+
     auto writeEnd = std::chrono::high_resolution_clock::now();
     std::cout << "Writing takes: "
               << std::chrono::duration<double, std::milli>(writeEnd - writeStart).count()
               << " milliseconds" << std::endl;
-    
+
     std::cout << keys.size() << std::endl;
     std::sort(keys.begin(), keys.end());
     auto last = std::unique(keys.begin(), keys.end());
     keys.erase(last, keys.end());
     //std::cout << engine->size() << " == " << keys.size() << std::endl;
-    
-    
+
+
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
-    
+
     unsigned numRead = 10000;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
         rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));
     }
-    for (auto& th : rreaders) {
+    for (auto &th : rreaders) {
         th.join();
     }
     rreaders.clear();
-    
+
     auto rreadEnd = std::chrono::high_resolution_clock::now();
     std::cout << "Random read takes: "
               << std::chrono::duration<double, std::milli>(rreadEnd - rreadStart).count()
               << " milliseconds" << std::endl;
-    
-    
+
+
 //    // Sequential Read
 //    auto sreadStart = std::chrono::high_resolution_clock::now();
 //

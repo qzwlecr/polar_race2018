@@ -5,23 +5,23 @@
 #include <index/hashmap.h>
 
 namespace polar_race {
-	class IndexStore {
-	public:
-		bool put(uint64_t key, uint64_t offset);
+    class IndexStore {
+    public:
+        bool put(uint64_t key, uint64_t offset);
 
-		bool get(uint64_t key, uint64_t &offset);
+        bool get(uint64_t key, uint64_t &offset);
 
-		void persist(int fd);
+        void persist(int fd);
 
-		void unpersist(int fd);
+        void unpersist(int fd);
 
-		IndexStore();
+        IndexStore();
 
-	private:
-		AtomicUnorderedInsertMap<uint64_t, MutableAtom<uint64_t>> hashmap;
-	};
+    private:
+        AtomicUnorderedInsertMap<uint64_t, MutableAtom<uint64_t>> hashmap;
+    };
 
-	extern IndexStore global_index_store;
+    extern IndexStore global_index_store;
 };
 
 

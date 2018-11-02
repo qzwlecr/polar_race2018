@@ -11,8 +11,11 @@
 
 namespace polar_race {
     using std::size_t;
-    struct sockaddr_un mksockaddr_un(const std::string& addr);
-    struct sockaddr_un mksockaddr_un(const char* addr, size_t addrlen);
+
+    struct sockaddr_un mksockaddr_un(const std::string &addr);
+
+    struct sockaddr_un mksockaddr_un(const char *addr, size_t addrlen);
+
     using Accumulator=std::atomic_uint64_t;
     namespace RequestType {
         const uint8_t TYPE_RD = 0;
@@ -25,27 +28,38 @@ namespace polar_race {
         char key[KEY_SIZE];
         char value[VAL_SIZE];
     };
+
     class MailBox {
-        public:
-            MailBox();
-            MailBox(std::string& address); // only for recving socket
-            MailBox(int fdesc);
-            MailBox& operator=(int fd);
-            int open(); // only for sending socket
-            ssize_t getOne(char* buf, size_t len, struct sockaddr_un* pairAddress);
-            ssize_t sendOne(const char* buf, size_t len, const struct sockaddr_un* pairAddress);
-            int close();
-            int desc;
+    public:
+        MailBox();
+
+        MailBox(std::string &address); // only for recving socket
+        MailBox(int fdesc);
+
+        MailBox &operator=(int fd);
+
+        int open(); // only for sending socket
+        ssize_t getOne(char *buf, size_t len, struct sockaddr_un *pairAddress);
+
+        ssize_t sendOne(const char *buf, size_t len, const struct sockaddr_un *pairAddress);
+
+        int close();
+
+        int desc;
     };
+
     class Multiplexer {
-        public:
-            Multiplexer();
-            int open();
-            int listen(const MailBox& mailbox); // listen for receiving
-            int unlisten(const MailBox& mailbox); // unlisten
-            int wait(MailBox* succeed, int maxevs, int timeout); // unit ms
-            int close();
-            int desc;
+    public:
+        Multiplexer();
+
+        int open();
+
+        int listen(const MailBox &mailbox); // listen for receiving
+        int unlisten(const MailBox &mailbox); // unlisten
+        int wait(MailBox *succeed, int maxevs, int timeout); // unit ms
+        int close();
+
+        int desc;
     };
 };
 

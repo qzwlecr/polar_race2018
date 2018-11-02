@@ -17,11 +17,13 @@
 #define Q_COLOR_WHITE "[37m"
 
 // functions for better usage?
-void qfmtColor(const char* color_const);
+void qfmtColor(const char *color_const);
+
 void qfmtClearColor();
 // qfmtColorizer("[",FAIL,"]",Q_COLOR_RED) ==> try this out!
-#define qfmtColorizer(prefix,colored,suffix,color) qfmtColorizerF(stdout,prefix,colored,suffix,color)
-void qfmtColorizerF(FILE* dstfile,const char* prefix,const char* colored,const char* suffix,const char* color);
+#define qfmtColorizer(prefix, colored, suffix, color) qfmtColorizerF(stdout,prefix,colored,suffix,color)
+
+void qfmtColorizerF(FILE *dstfile, const char *prefix, const char *colored, const char *suffix, const char *color);
 
 // const moves
 

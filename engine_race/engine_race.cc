@@ -1,19 +1,12 @@
 // Copyright [2018] Alibaba Cloud All rights reserved
 #include "engine_race.h"
-#include <sys/types.h>
 #include <unistd.h>
-#include <string>
 #include "consts/consts.h"
 #include "task/task.h"
-#include "commu/commu.h"
-#include <cstdio>
 #include "format/log.h"
 #include <thread>
 #include "flusher/flusher.h"
-
 #include "index/index.h"
-
-#include <sys/epoll.h>
 
 using namespace std;
 
@@ -39,7 +32,7 @@ namespace polar_race {
 
     Flusher flusher;
 
-    string ItoS(int i){
+    string ItoS(int i) {
         char tmp[40] = {0};
         sprintf(tmp, "%d", i);
         return string(tmp);
@@ -56,41 +49,41 @@ namespace polar_race {
         EngineRace *engine_race = new EngineRace(name);
         qLogInfofmt("Startup: EngineName %s", name.c_str());
         qLogInfofmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
-        for(int i = 0; i < HANDLER_THREADS; i++){
+        for (int i = 0; i < HANDLER_THREADS; i++) {
             recvaddres[i] = REQ_ADDR_PREFIX + ItoS(i);
             rsaddr[i] = mksockaddr_un(recvaddres[i]);
         }
         qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
-        for(int i = 0; i < UDS_NUM; i++){
+        for (int i = 0; i < UDS_NUM; i++) {
             int sv = requestfds[i].open();
-            if(sv == -1){
+            if (sv == -1) {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }
             reqfds_occupy[i] = false;
         }
         qLogInfofmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
-        if(!access(INDECIES_PATH.c_str(), R_OK | W_OK)){
+        if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
             qLogInfo("Startup: Unpersisting..");
             int fd = open(INDECIES_PATH.c_str(), 0);
             global_index_store.unpersist(fd);
             close(fd);
         }
         qLogInfo("Startup: FORK !");
-        if(fork()){
+        if (fork()) {
             // parent
             qLogInfo("Startup: FORK completed.");
             qLogInfo("Startup: HeartBeat thread.");
             thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
             qLogInfo("Startup: wait ReqHandler startup complete.");
-            while(start_ok == false);
+            while (start_ok == false);
             qLogInfo("Startup: Everything OK.");
         } else {
             // child
             qLogInfo("RequestHandler: FORK completed.");
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
-            for(int i = 0; i < HANDLER_THREADS; i++){
+            for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
                 thread handthrd(RequestProcessor, recvaddres[i]);
                 handthrd.detach();
@@ -114,7 +107,7 @@ namespace polar_race {
     EngineRace::~EngineRace() {
         running = false;
         qLogInfo("Closing: closing sockets..");
-        for(int i = 0; i < UDS_NUM; i++){
+        for (int i = 0; i < UDS_NUM; i++) {
             requestfds[i].close();
         }
     }
@@ -126,25 +119,25 @@ namespace polar_race {
         memcpy(rr.value, value.data(), VAL_SIZE);
         rr.type = RequestType::TYPE_WR;
         // Acquire an Mailbox
-        int reqIdx = 0;
+        uint64_t reqIdx = 0;
         bool fk = false;
-        do{
+        do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        }while(reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
         // then OK, we do writing work
-        int sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
-        if(sv == -1){
+        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
+        if (sv == -1) {
             return kIOError;
         }
         struct sockaddr_un useless;
-        int rv = requestfds[reqIdx % UDS_NUM].getOne(
-                reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &useless);
-        if(rv == -1){
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        if (rv == -1) {
             return kIOError;
         }
-        if(rr.type != RequestType::TYPE_OK){
+        if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
         return kSucc;
@@ -156,25 +149,25 @@ namespace polar_race {
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
         // Acquire an Mailbox
-        int reqIdx = 0;
+        uint64_t reqIdx = 0;
         bool fk = false;
-        do{
+        do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        }while(reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
         // then OK, we do writing work
-        int sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
-        if(sv == -1){
+        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
+        if (sv == -1) {
             return kIOError;
         }
         struct sockaddr_un useless;
-        int rv = requestfds[reqIdx % UDS_NUM].getOne(
-                reinterpret_cast<char*>(&rr), sizeof(RequestResponse), &useless);
-        if(rv == -1){
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        if (rv == -1) {
             return kIOError;
         }
-        if(rr.type != RequestType::TYPE_OK){
+        if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
         *value = string(rr.value);

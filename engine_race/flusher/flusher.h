@@ -21,22 +21,22 @@ namespace polar_race {
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
 #endif
-	extern bool ExitSign;
+    extern bool ExitSign;
 
-	class Flusher {
-	public:
-		void flush_begin();
+    class Flusher {
+    public:
+        void flush_begin();
 
-	private:
-		void *read();
+    private:
+        void *read();
 
-		void *flush();
+        void *flush();
 
-		uint64_t internal_buffer_index = 0;
-		bool last_flush = false;
-		uint32_t internal_buffer_part = 0;
+        uint64_t internal_buffer_index = 0;
+        bool last_flush = false;
+        uint32_t internal_buffer_part = 0;
 
-	};
+    };
 }
 
 #endif //ENGINE_RACE_FLUSHER_H
