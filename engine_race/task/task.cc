@@ -40,6 +40,7 @@ namespace polar_race {
                 qLogWarnfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));
                 /* abort(); */
             }
+            qLogInfo("HeartBeater: beat!");
             sleep(1);
         }
     }
@@ -47,7 +48,7 @@ namespace polar_race {
     void HeartBeatChecker(string recvaddr) {
         // ENSURE
         ExitSign = false;
-        qLogInfofmt("HeartBeater: initialize %s", LDOMAIN(recvaddr.c_str()));
+        qLogInfofmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (unlikely(hbcmb.desc == -1)) {
             qLogFailfmt("HeartBeatChecker MailBox open failed: %s", strerror(errno));
@@ -66,7 +67,9 @@ namespace polar_race {
         MailBox successer;
         uint32_t hbmagic = 0;
         while (true) {
+            qLogDebug("HeartBeatChecker: remux");
             int rv = mp.wait(&successer, 1, 3000);
+            qLogDebugfmt("HeartBeatChecker: rv %d", rv);
             if (unlikely(rv == -1)) {
                 qLogFailfmt("HeartBeatChecker Multiplexer Wait Failed: %s", STRERR);
                 if (errno != EINTR) {
@@ -79,8 +82,8 @@ namespace polar_race {
                 // timed out!
                 ExitSign = true;
                 // do clean work
-                mp.close();
-                hbcmb.close();
+                /* mp.close(); */
+                /* hbcmb.close(); */
                 return;
             }
             // not very ok exactly..
