@@ -143,7 +143,7 @@ namespace polar_race {
                         abort();
                     }
                 } else {
-                    cout << "RequestProcessor file_offset " << file_offset << endl;
+                    qLogDebugfmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()), file_offset, WrittenIndex);
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
