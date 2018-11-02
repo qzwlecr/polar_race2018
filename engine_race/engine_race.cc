@@ -8,6 +8,9 @@
 #include "flusher/flusher.h"
 #include "index/index.h"
 #include <cstdio>
+#include <stdlib.h>
+#include <malloc.h>
+
 extern "C"{
     #include "signames.h"
 #include "signal.h"
@@ -38,7 +41,7 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
-
+    extern char *RealInternalBuffer;
     bool start_ok = false;
     bool running = true;
 
@@ -86,6 +89,7 @@ namespace polar_race {
             global_index_store.unpersist(fd);
             close(fd);
         }
+        RealInternalBuffer = (char*)memalign(4096, 2*INTERNAL_BUFFER_LENGTH);
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent

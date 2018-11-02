@@ -9,7 +9,7 @@ namespace polar_race {
 
     extern char CommitQueue[COMMIT_QUEUE_LENGTH * 4096];
     extern volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
-    extern uint64_t WrittenIndex;
+    extern volatile uint64_t WrittenIndex;
     extern char *InternalBuffer;
 
     extern bool ExitSign; // on true, execute exit clean proc

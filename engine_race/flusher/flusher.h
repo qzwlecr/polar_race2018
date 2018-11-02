@@ -33,8 +33,8 @@ namespace polar_race {
 
         void *flush();
 
-        uint64_t internal_buffer_index = 0;
-        bool last_flush = false;
+        volatile uint64_t internal_buffer_index = 0;
+        volatile bool last_flush = false;
         uint32_t internal_buffer_part = 0;
 
     };
