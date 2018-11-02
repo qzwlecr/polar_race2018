@@ -135,10 +135,29 @@ void write(Engine *engine, threadsafe_vector<std::string> &keys, unsigned numWri
 
 void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsigned numRead) {
     RandNum_generator rng(0, keys.size() - 1);
+    using namespace std;
     for (unsigned i = 0; i < numRead; ++i) {
         auto &key = keys[rng.nextNum()];
         std::string val;
         engine->Read(key, &val);
+        unsigned short *vtemp = (unsigned short *) val.c_str();
+        cout << "[val]" << endl;
+        for (int i = 0; i < val.length(); ++i) {
+            cout << (int) vtemp[i] << " ";
+        }
+        cout << endl;
+        unsigned short *vtemp2 = (unsigned short *) key.c_str();
+        cout << "[key ideal]" << endl;
+        for (int i = 0; i < key_from_value(val).length(); ++i) {
+            cout << (int) vtemp2[i] << " ";
+        }
+        cout << endl;
+        unsigned short *vtemp3 = (unsigned short *) key_from_value(val).c_str();
+        cout << "[key real]" << endl;
+        for (int i = 0; i < key_from_value(val).length(); ++i) {
+            cout << (int) vtemp3[i] << " ";
+        }
+        cout << endl;
         //if (key != hash_to_str(fnv1_hash_64(val)) {
         if (key != key_from_value(val)) {
             std::cout << "Random Read error: key and value not match" << std::endl;
@@ -235,7 +254,7 @@ int main() {
     // Write
     auto writeStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numWrite = 1000;
+    unsigned numWrite = 10;
     std::vector<std::thread> writers;
     for (int i = 0; i < numThreads; ++i) {
         writers.emplace_back(std::thread(write, engine, std::ref(keys), numWrite));
@@ -260,7 +279,7 @@ int main() {
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numRead = 1000;
+    unsigned numRead = 10;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
         rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));
