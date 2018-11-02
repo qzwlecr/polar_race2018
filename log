@@ -1,0 +1,553 @@
+make -C /home/imzhwk/competitions/polardb/ourimpl/engine_race  LIBOUTPUT=/home/imzhwk/competitions/polardb/ourimpl/lib clean
+make[1]: Entering directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+rm -f /home/imzhwk/competitions/polardb/ourimpl/lib/libengine.a
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/engine_race/engine_race.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/task/task.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/index/index.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/flusher/flusher.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/format/format.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/mailbox.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/multiplexer.o
+rm -rf 
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/lib
+find /home/imzhwk/competitions/polardb/ourimpl/engine_race -maxdepth 1 -name "*.[oda]*" -exec rm -f {} \;
+find /home/imzhwk/competitions/polardb/ourimpl/engine_race -maxdepth 1 -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+make[1]: Leaving directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+rm -f /home/imzhwk/competitions/polardb/ourimpl/lib/.a
+rm -rf 
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/lib
+find  -maxdepth 1 -name "*.[oda]*" -exec rm -f {} \;
+find  -maxdepth 1 -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+make[1]: Entering directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+  CC       engine_race.o
+  CC       task.o
+  CC       index.o
+In file included from ./index/index.h:5,
+                 from /home/imzhwk/competitions/polardb/ourimpl/engine_race/index/index.cc:2:
+./index/hashmap.h: In instantiation of ‘void AtomicUnorderedInsertMap<Key, Value, Hash, KeyEqual, Atom, IndexType, Allocator>::zeroFillSlots() [with Key = long unsigned int; Value = MutableAtom<long unsigned int>; Hash = std::hash<long unsigned int>; KeyEqual = std::equal_to<long unsigned int>; Atom = std::atomic; IndexType = unsigned int; Allocator = MMapAlloc]’:
+./index/hashmap.h:210:9:   required from ‘AtomicUnorderedInsertMap<Key, Value, Hash, KeyEqual, Atom, IndexType, Allocator>::AtomicUnorderedInsertMap(size_t, float, const Allocator&) [with Key = long unsigned int; Value = MutableAtom<long unsigned int>; Hash = std::hash<long unsigned int>; KeyEqual = std::equal_to<long unsigned int>; Atom = std::atomic; IndexType = unsigned int; Allocator = MMapAlloc; size_t = long unsigned int]’
+/home/imzhwk/competitions/polardb/ourimpl/engine_race/index/index.cc:29:53:   required from here
+./index/hashmap.h:391:19: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘struct AtomicUnorderedInsertMap<long unsigned int, MutableAtom<long unsigned int> >::Slot’ with no trivial copy-assignment; use value-initialization instead [-Wclass-memaccess]
+             memset(slots_, 0, mmapRequested_);
+             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+./index/hashmap.h:296:12: note: ‘struct AtomicUnorderedInsertMap<long unsigned int, MutableAtom<long unsigned int> >::Slot’ declared here
+     struct Slot {
+            ^~~~
+  CC       flusher.o
+  CC       format.o
+  CC       mailbox.o
+  CC       multiplexer.o
+ar: creating /home/imzhwk/competitions/polardb/ourimpl/lib/libengine.a
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/engine_race.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/task/task.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/index/index.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/flusher/flusher.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/format/format.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/mailbox.o
+a - /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/multiplexer.o
+make[1]: Leaving directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+g++ -std=c++11 -o test -g -I.. test.cc -L../lib -lengine -lpthread -lrt -lz
+g++ -std=c++11 -o test_with_kill -g -I.. test_with_kill.cc -L../lib -lengine -lpthread -lrt -lz
+6
+[[0mINFO[0m](11/03/2018 00:35:03) Startup: EngineName /tmp/test_engine
+[[0mINFO[0m](11/03/2018 00:35:03) Startup: Pre-Creating ./ralopdb.dat to prevent Hander gg..
+[[0mINFO[0m](11/03/2018 00:35:03) StartupConfigurator: 16 Handlers..
+[[0mINFO[0m](11/03/2018 00:35:03) StartupConfigurator: 128 UDSs..
+[[0mINFO[0m](11/03/2018 00:35:03) StartupConfigurator: Unpersisting Core Index from ./ralopdb_index.dat
+[[0mINFO[0m](11/03/2018 00:35:03) Startup: FORK !
+[[0mINFO[0m](11/03/2018 00:35:03) Startup: FORK completed.
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHandler: FORK completed.
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHandler: Setup termination detector.
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHandlerConfigurator: 16 Handler threads..
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 0
+[[0mINFO[0m](11/03/2018 00:35:03) Startup: wait ReqHandler startup complete.
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 1
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 2
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 3
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 4
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 5
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 6
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 7
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 8
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 9
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 10
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 11
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 12
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 13
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 14
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHander: Starting Handler thread 15
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHandler: starting Disk Operation thread..
+[[0mINFO[0m](11/03/2018 00:35:03) RequestHandler: starting HeartBeat Detection thread..
+[[37mDEBG[0m][[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:03) Flusher: File Descripter=[163]
+(11/03/2018 00:35:03) RequestHandler: everything OK, will now go to indefinite sleep!!
+(11/03/2018 00:35:03) HeartBeatChecker: initialize ralopdb/heartbeat
+[[0mINFO[0m](11/03/2018 00:35:05) Startup: HeartBeat thread.
+[[0mINFO[0m](11/03/2018 00:35:05) Startup: Everything OK.
+[[0mINFO[0m](11/03/2018 00:35:05) HeartBeater: initialize ralopdb/heartbeat
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Engine::Write: K 37548 => V 7106
+[[37mDEBG[0m](11/03/2018 00:35:05) HeartBeater: beat!
+[[0mINFO[0m](11/03/2018 00:35:05) [[0mINFO[0m]Engine::Write: K 3337 => V 32876
+(11/03/2018 00:35:05) HeartBeatChecker: beat!
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/0]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: K 37548 => V 7106
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/1]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: K 3337 => V 32876
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) (11/03/2018 00:35:05) Reader: 1
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 2
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Processing Complete.
+RequestProcessor[ralopdb/request/0]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 63235 => V 5297
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 45410 => V 39537
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/3]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: K 45410 => V 39537
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 16505 => V 10676
+(11/03/2018 00:35:05) Reader: 3
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/2]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: K 63235 => V 5297
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 61825 => V 59819
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Processing Complete.
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 64358 => V 10089(11/03/2018 00:35:05) 
+ReqeustProcessor[ralopdb/request/5]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: K 61825 => V 59819
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 37703 => V 4311
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 21151 => V 61810
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/4]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: K 16505 => V 10676
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: CommitCompletionQueue state SET (now 1).
+[[0mINFO[0m][[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/7]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: K 37703 => V 4311
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/6]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: K 64358 => V 10089
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 4
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 5
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 6(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Processing Complete.
+
+[[37mDEBG[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/8]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: K 21151 => V 61810
+(11/03/2018 00:35:05) [[0mINFO[0m]Reader: 7
+[[37mDEBG[0m][[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Write transcation committed.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 51899 => V 63125
+(11/03/2018 00:35:05) Reader: 8
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 9
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/9]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: K 51899 => V 63125
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 50762 => V 60322
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Write transcation committed.(11/03/2018 00:35:05) [[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/10]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: K 50762 => V 60322
+[[37mDEBG[0m]RequestProcessor[ralopdb/request/9]: CommitCompletionQueue state SET (now 0).(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: CommitCompletionQueue state SET (now 1).
+
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Processing Complete.
+
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Write transcation committed.[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 31541 => V 63783
+
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/11]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: K 31541 => V 63783
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 42433 => V 17587
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/12]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: K 42433 => V 17587
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Engine::Write: K 53322 => V 53553
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/13]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: K 53322 => V 53553
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 37489 => V 30081
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 29867 => V 64010
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/14]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: K 37489 => V 30081
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 10
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 11
+[[37mDEBG[0m][[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 12
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Processing Complete.
+(11/03/2018 00:35:05) Reader: 13
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 14
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 15
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/15]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: K 29867 => V 64010
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 16
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 58601 => V 41770
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/0]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: K 58601 => V 41770
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Write transcation committed.
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 17
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 858 => V 49903
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/1]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: K 858 => V 49903
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 21064 => V 26619
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 18
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/2]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: K 21064 => V 26619
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 4177 => V 11946
+[[37mDEBG[0m][[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 19
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/3]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: K 4177 => V 11946
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Processing Complete.
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 20
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Write transcation committed.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: CommitCompletionQueue state SET (now 0).[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Processing Complete.
+
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 46438 => V 45296
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/4]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) [[37mDEBG[0m]RequestProcessor[ralopdb/request/4]: K 46438 => V 45296
+(11/03/2018 00:35:05) Engine::Write: K 12461 => V 29750
+[[0mINFO[0m](11/03/2018 00:35:05) [[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: CommitCompletionQueue state SET (now 0).(11/03/2018 00:35:05) 
+Engine::Write: K 25221 => V 9326
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 21
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Processing Complete.
+ReqeustProcessor[ralopdb/request/5]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: K 12461 => V 29750
+[[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 5635 => V 2636
+(11/03/2018 00:35:05) Reader: 22
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 24673 => V 3070
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/6]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: K 25221 => V 9326
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/7]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: K 5635 => V 2636
+[[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 28422 => V 46779
+[[0mINFO[0m][[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) (11/03/2018 00:35:05) (11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Processing Complete.
+(11/03/2018 00:35:05) Reader: 23
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 24
+RequestProcessor[ralopdb/request/5]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Write transcation committed.
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/9]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: K 28422 => V 46779
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/8]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: K 24673 => V 3070
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Processing Complete.
+RequestProcessor[ralopdb/request/7]: CommitCompletionQueue state SET (now 1).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Processing Complete.
+[[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 25
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 26
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 38531 => V 40345
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 251 => V 22167
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/11]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) (11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: K 251 => V 22167Engine::Write: K 53302 => V 49256
+
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 27
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/10]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: K 38531 => V 40345
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 13817 => V 38072
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Write transcation committed.
+(11/03/2018 00:35:05) Reader: 28
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 41595 => V 23838
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 12339 => V 40919
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/13]: WR !
+[[37mDEBG[0m][[0mINFO[0m][[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Engine::Write: K 54001 => V 51812
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/0]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: K 54001 => V 51812
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/15]: WR !
+[[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 29
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: K 12339 => V 40919
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 54968 => V 2254[[37mDEBG[0m]
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Write transcation committed.
+(11/03/2018 00:35:05) Reader: 30
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/1]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: K 54968 => V 2254
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 7446 => V 26549
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/12]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: K 53302 => V 49256
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 31
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: CommitCompletionQueue state SET (now 0).
+(11/03/2018 00:35:05) (11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: K 13817 => V 38072
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 32Engine::Write: K 31570 => V 37216
+
+(11/03/2018 00:35:05) [[0mINFO[0m][[37mDEBG[0m][[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/3]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) (11/03/2018 00:35:05) (11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m]RequestProcessor[ralopdb/request/12]: Write transcation committed.
+(11/03/2018 00:35:05) Reader: 33
+RequestProcessor[ralopdb/request/1]: Write transcation committed.
+ReqeustProcessor[ralopdb/request/2]: WR !
+[[37mDEBG[0m][[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: K 7446 => V 26549
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: K 31570 => V 37216
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Processing Complete.
+(11/03/2018 00:35:05) [[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Write transcation committed.
+(11/03/2018 00:35:05) Reader: 34
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 35
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Write transcation committed.
+(11/03/2018 00:35:05) Engine::Write: K 38785 => V 49113
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 48274 => V 35058
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/4]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: K 38785 => V 49113
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/5]: WR !RequestProcessor[ralopdb/request/13]: Write transcation committed.[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 36
+
+
+[[37mDEBG[0m][[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: K 48274 => V 35058
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Processing Complete.
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Reader: 37
+[[37mDEBG[0m](11/03/2018 00:35:05) [[37mDEBG[0m]Engine::Write: K 1016 => V 54486
+(11/03/2018 00:35:05) Engine::Write: K 47444 => V 55918
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/6]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 35419 => V 17318
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: K 1016 => V 54486
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Write transcation committed.
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: CommitCompletionQueue state SET (now 1).
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Write transcation committed.
+(11/03/2018 00:35:05) Reader: 38
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Processing Complete.
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/8]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: K 35419 => V 17318
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 49125 => V 23751
+[[37mDEBG[0m][[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/9]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: K 49125 => V 23751
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 50190 => V 53197
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/10]: WR ![[0mINFO[0m]
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/7]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: K 47444 => V 55918
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: K 50190 => V 53197
+(11/03/2018 00:35:05) Reader: 39
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Reader: 40
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 41
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 42
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Write transcation committed.(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 45799 => V 35831
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 52744 => V 50620
+[[0mINFO[0m][[0mINFO[0m]
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 1713 => V 59723
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Write transcation committed.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/14]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: K 41595 => V 23838
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/12]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: K 52744 => V 50620
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 29283 => V 3689
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/11]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: K 45799 => V 35831
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/14]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: K 29283 => V 3689
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/13]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: K 1713 => V 59723
+(11/03/2018 00:35:05) Reader: 43
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Write transcation committed.
+[[37mDEBG[0m][[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: CommitCompletionQueue state SET (now 1).
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 55538 => V 568
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/15]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: K 55538 => V 568
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 44
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 45
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Write transcation committed.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Write transcation committed.
+(11/03/2018 00:35:05) [[0mINFO[0m]Reader: 46
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 47
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Reader: 48
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Processing Complete.
+[[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) Engine::Write: K 6719 => V 48214
+[[0mINFO[0m][[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 52930 => V 49879
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Write transcation committed.
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/0]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: K 6719 => V 48214
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/1]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: K 52930 => V 49879
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) [[37mDEBG[0m]RequestProcessor[ralopdb/request/0]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Engine::Write: K 24304 => V 16078
+(11/03/2018 00:35:05) Reader: 49
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Write transcation committed.
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/2]: WR ![[37mDEBG[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/0]: Processing Complete.
+(11/03/2018 00:35:05) Reader: 50
+
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: K 24304 => V 16078
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/1]: Processing Complete.
+[[37mDEBG[0m][[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 15811 => V 20437
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 39323 => V 18724
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/3]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: K 15811 => V 20437
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/4]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: K 39323 => V 18724
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/2]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 43228 => V 15254
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/5]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: K 43228 => V 15254
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 51
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 52
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 53
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 54
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 26170 => V 152
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/4]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Write transcation committed.
+[[0mINFO[0m][[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 16739 => V 46914
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/5]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/7]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: K 16739 => V 46914
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 55
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/7]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 27755 => V 10536
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/8]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: K 27755 => V 10536
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) Reader: 56
+(11/03/2018 00:35:05) [[37mDEBG[0m]RequestProcessor[ralopdb/request/8]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) (11/03/2018 00:35:05) Engine::Write: K 51260 => V 50286RequestProcessor[ralopdb/request/8]: Write transcation committed.
+
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/8]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/9]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: K 51260 => V 50286
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 57
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/9]: Processing Complete.
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/3]: Processing Complete.
+[[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 9648 => V 61773
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/10]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: K 9648 => V 61773
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Write transcation committed.
+[[0mINFO[0m][[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/10]: Processing Complete.
+(11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/6]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: K 26170 => V 152
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: CommitCompletionQueue state SET (now 1).
+(11/03/2018 00:35:05) Reader: 58
+[[37mDEBG[0m](11/03/2018 00:35:05) Reader: 59
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/6]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) [[37mDEBG[0m](11/03/2018 00:35:05) Engine::Write: K 58955 => V 55051
+RequestProcessor[ralopdb/request/6]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) ReqeustProcessor[ralopdb/request/11]: WR !
+[[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: K 58955 => V 55051
+[[37mDEBG[0m][[37mDEBG[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: CommitCompletionQueue state SET (now 0).
+[[0mINFO[0m](11/03/2018 00:35:05) Reader: 60
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Write transcation committed.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/11]: Processing Complete.
+Writing takes: 86.4336 milliseconds
+60
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: RD a996484b79607263 !
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Value found on InternalBuffer
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/12]: Processing Complete.
+[val]
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: RD 3a6ee4e0a9864163 !
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Value found on InternalBuffer
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/13]: Processing Complete.
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: RD 8daf4438c6eed6b8 !
+[[0mINFO[0m]10676 38319 65358 41167 23317 32467 40403 31246 14064 21960 18180 18452 20820 10909 32687 10323 20254 38977 57131 6443 9657 29165 14654 44260 33530 14426 29461 20965 37324 52585 64933 5610 22104 44203 41820 42198 56081 36059 62706 7126 20459 52493 60673 48036 32920 13043 19891 30720 53154 27927 35165 60740 1153 2 0 0 43182 30768 32203 25703 18881 48609 25799 39473 54259 23426 21686 11002 30440 43878 15043 55879 49391 10339 37244 51824 32211 12906 942 42344 8282 27127 31700 48422 54861 36101 64491 60755 58661 45093 62266 9753 22206 37986 
+[key ideal]
+(11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Value found on InternalBuffer29283 31072 18507 43414 0 0 0 0 
+
+[key real]
+58955 53585 23487 34057 0 0 0 0 
+Random Read error: key and value not match
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/14]: Processing Complete.
+[val]
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: RD a996484b79607263 !
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Value found on InternalBuffer
+[[0mINFO[0m](11/03/2018 00:35:05) RequestProcessor[ralopdb/request/15]: Processing Complete.
+4311 29438 65135 3880 49421 42387 3768 34766 8003 38775 34838 20454 24774 14820 56474 47630 65079 54745 53805 48182 11632 44041 24712 8308 35150 63940 52932 28875 41883 10475 41221 64070 64765 15350 34806 31129 51169 12688 46579 34783 1828 63045 24810 23389 14655 23080 10572 32353 37824 12906 64704 6812 3185 19880 61527 32830 6729 19054 61225 8797 8558 40439 34912 27662 40600 11864 38016 16881 56422 19591 5871 42113 21927 24668 35612 27568 17480 58168 37997 2573 4172 7284 10935 53830 5280 31862 64315 46685 50305 17009 59628 61401 23996 38358 2037 58477 36047 12272 2872 38171 10418 46854 42730 54994 60302 21241 63154 29537 33851 37072 22735 44678 33654 29387 47681 31032 55235 59107 41165 28997 58213 57781 41741 55892 18638 40593 30463 40790 7881 36368 5078 53634 47193 37554 59137 63240 63418 63104 38681 116 977 2 0 0 13560 63546 5202 29519 4360 3023 47066 31652 44151 21641 24290 58948 30956 34853 15352 29977 22623 2560 26355 55566 9292 36449 16749 56575 60183 11419 382 25629 20551 58321 24202 57463 9184 21914 29090 21843 33570 13277 52177 522 16393 41037 22418 28219 19966 8848 12265 9663 13417 4152 48253 20038 43131 3421 28261 3155 11022 36903 38970 53897 27575 11430 44531 4022 57762 4615 10894 28854 55449 58490 29243 9565 29456 29377 15982 55653 43213 36443 11444 23407 54469 12445 32049 23282 14119 33086 46272 4503 3426 3975 5597 45182 1963 2192 30805 37252 27582 23737 27595 47651 42917 19889 20141 11283 26329 29116 30102 41436 41319 8777 35833 18663 61346 55922 58645 56651 30189 13236 43685 32115 43485 17645 14413 42386 61216 22999 25458 12384 10940 11804 57435 54047 49414 13514 63171 
+[key ideal]
+54968 50926 17464 36271 0 0 0 0 
+[key real]
+27755 1632 1012 20544 0 0 0 0 
+Random Read error: key and value not match
+[val]
+10676 38319 65358 41167 23317 32467 40403 31246 14064 21960 18180 18452 20820 10909 32687 10323 20254 38977 57131 6443 9657 29165 14654 44260 33530 14426 29461 20965 37324 52585 64933 5610 22104 44203 41820 42198 56081 36059 62706 7126 20459 52493 60673 48036 32920 13043 19891 36864 20300 48987 13719 61722 1153 2 0 0 29992 27877 63213 13202 54065 1245 61446 33448 57853 10766 52364 43089 62602 64189 15285 2743 34182 6001 40022 34335 20103 16525 22700 26327 26326 2893 4006 20254 54938 45209 44150 15824 41816 6783 19360 54865 16109 20297 
+[key ideal]
+29283 31072 18507 43414 0 0 0 0 
+[key real]
+51260 62289 45992 34314 0 0 0 0 
+Random Read error: key and value not match
+make -C /home/imzhwk/competitions/polardb/ourimpl/engine_race  LIBOUTPUT=/home/imzhwk/competitions/polardb/ourimpl/lib clean
+make[1]: Entering directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+rm -f /home/imzhwk/competitions/polardb/ourimpl/lib/libengine.a
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/engine_race/engine_race.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/task/task.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/index/index.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/flusher/flusher.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/format/format.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/mailbox.o /home/imzhwk/competitions/polardb/ourimpl/engine_race/commu/multiplexer.o
+rm -rf 
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/lib
+find /home/imzhwk/competitions/polardb/ourimpl/engine_race -maxdepth 1 -name "*.[oda]*" -exec rm -f {} \;
+find /home/imzhwk/competitions/polardb/ourimpl/engine_race -maxdepth 1 -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+make[1]: Leaving directory '/home/imzhwk/competitions/polardb/ourimpl/engine_race'
+rm -f /home/imzhwk/competitions/polardb/ourimpl/lib/.a
+rm -rf 
+rm -rf /home/imzhwk/competitions/polardb/ourimpl/lib
+find  -maxdepth 1 -name "*.[oda]*" -exec rm -f {} \;
+find  -maxdepth 1 -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+[[31mFAIL[0m](11/03/2018 00:35:08) HeartBeatChecker: Timed out.
+[[37mDEBG[0m](11/03/2018 00:35:08) Flusher: Ready to flush to disk

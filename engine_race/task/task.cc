@@ -208,6 +208,8 @@ namespace polar_race {
                 qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             } else {
                 qLogInfofmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
+                qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
+                        *reinterpret_cast<uint16_t*>(rr.key), *reinterpret_cast<uint16_t*>(rr.value));
                 // get New Index
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx

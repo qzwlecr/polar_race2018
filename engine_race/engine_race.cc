@@ -141,6 +141,8 @@ namespace polar_race {
 
 // 3. Write a key-value pair into engine
     RetCode EngineRace::Write(const PolarString &key, const PolarString &value) {
+        qLogDebugfmt("Engine::Write: K %hu => V %hu",
+                *reinterpret_cast<const uint16_t*>(key.data()), *reinterpret_cast<const uint16_t*>(value.data()));
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         memcpy(rr.value, value.data(), VAL_SIZE);
