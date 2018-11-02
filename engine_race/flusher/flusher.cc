@@ -64,7 +64,6 @@ namespace polar_race {
             qLogDebugfmt("Flusher: Flushing to disk, part=[%d], index=[%lu]", internal_buffer_part,
                          internal_buffer_index);
             internal_buffer_index = 0;
-            qLogDebugfmt("Flusher: InitPointer = %p, Pointer = %p", RealInternalBuffer, RealInternalBuffer + (1 - internal_buffer_part) * INTERNAL_BUFFER_LENGTH);
 
             ssize_t ret = write(fd, RealInternalBuffer + (1 - internal_buffer_part) * INTERNAL_BUFFER_LENGTH,
                                 INTERNAL_BUFFER_LENGTH);

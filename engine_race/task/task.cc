@@ -133,11 +133,11 @@ namespace polar_race {
                     }
                 } else {
                     // check WrittenIndex against expectedIndex
-                    if (file_offset > WrittenIndex) {
+                    if (file_offset >= WrittenIndex) {
                         // read from internal buffer
                         memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset, BUFFER_SIZE), VAL_SIZE);
                         // check WrittenIndex again
-                        if (file_offset > WrittenIndex) {
+                        if (file_offset >= WrittenIndex) {
                             // then we should return it
                             qLogInfofmt("RequestProcessor[%s]: Value found on InternalBuffer",
                                         LDOMAIN(recvaddr.c_str()));
