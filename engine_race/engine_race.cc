@@ -100,9 +100,6 @@ namespace polar_race {
         }
         qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
         for (int i = 0; i < UDS_NUM; i++) {
-            if(requestfds[i].desc != -1){
-                continue;
-            }
             string sndaddr = string(RESP_ADDR_PREFIX) + ItoS(i);
             requestfds[i] = MailBox(sndaddr);
             if (requestfds[i].desc == -1) {
@@ -163,11 +160,12 @@ namespace polar_race {
     EngineRace::~EngineRace() {
         qLogInfo("Engine:: Destructing..");
         running = false;
-        /* for (int i = 0; i < UDS_NUM; i++) { */
-        /*     if(requestfds[i].close()){ */
-        /*         qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno)); */
-        /*     } */
-        /* } */
+        qLogInfo("Engine:: Closing UDSs..");
+        for (int i = 0; i < UDS_NUM; i++) {
+            if(requestfds[i].close()){
+                qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
+            }
+        }
     }
 
 // 3. Write a key-value pair into engine
