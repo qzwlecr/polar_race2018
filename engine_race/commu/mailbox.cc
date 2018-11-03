@@ -52,6 +52,7 @@ namespace polar_race {
                     abort();
                 }
             }
+            break;
         }
         desc = sock;
         // now this socket is suitable for calling RECVFROM, we stop here.

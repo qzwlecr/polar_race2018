@@ -93,6 +93,9 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
+        qLogInfo("Startup: resetting Global Variables");
+        start_ok = false;
+        running = true;
         qLogInfofmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
             recvaddres[i] = string(REQ_ADDR_PREFIX) + ItoS(i);
