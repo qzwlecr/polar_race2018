@@ -14,6 +14,10 @@
 #include <format/log.h>
 #include <task/task.h>
 
+extern "C"{
+#include <sys/file.h>
+}
+
 namespace polar_race {
 
 #if defined(__GNUC__)
