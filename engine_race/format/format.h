@@ -3,6 +3,8 @@
 
 #include <cstdio>
 #include <mutex>
+#include <string>
+#include <sstream>
 
 #define Q_ESCAPE_CHAR "\x1b"
 #define Q_FMT_APPLY(x) Q_ESCAPE_CHAR x
@@ -30,6 +32,7 @@ void qfmtColorizerF(FILE *dstfile, const char *prefix, const char *colored, cons
 
 // const moves
 
+std::string KVArrayDump(const char* arr, size_t dumplen);
 
 
 #endif
