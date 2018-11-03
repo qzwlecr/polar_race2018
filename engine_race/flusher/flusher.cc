@@ -21,9 +21,10 @@ namespace polar_race {
     }
 
     void *Flusher::read() {
-        for (uint64_t index = WrittenIndex % COMMIT_QUEUE_LENGTH;; index++) {
+        for (uint64_t index = (WrittenIndex / 4096) % COMMIT_QUEUE_LENGTH;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
+            qLogDebugfmt("Flusher: index = %lu, WrittenIndex = %lu", index, WrittenIndex);
             while (CommitCompletionQueue[index] == 0) {
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
