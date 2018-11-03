@@ -188,6 +188,7 @@ namespace polar_race {
     RetCode EngineRace::Read(const PolarString &key, std::string *value) {
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
+        qLogDebugfmt("Engine::Read Init K %s", KVArrayDump(rr.key, 8).c_str());
         rr.type = RequestType::TYPE_RD;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
@@ -214,8 +215,8 @@ namespace polar_race {
         if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
-        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(), KVArrayDump(rr.value, 8).c_str());
-        *value = string(rr.value);
+        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(), KVArrayDump(rr.value, 8).c_str());
+        *value = string(rr.value, VAL_SIZE);
         return kSucc;
     }
 

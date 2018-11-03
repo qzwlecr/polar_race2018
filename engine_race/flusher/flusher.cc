@@ -13,7 +13,6 @@ namespace polar_race {
     char *InternalBuffer;
 
     void Flusher::flush_begin() {
-        InternalBuffer;
         thread flush_reader(&Flusher::read, this);
         flush_reader.detach();
         thread flush_executor(&Flusher::flush, this);
@@ -50,8 +49,7 @@ namespace polar_race {
         int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
-            while (internal_buffer_index != (INTERNAL_BUFFER_LENGTH / 4096) &&
-                   internal_buffer_index != (INTERNAL_BUFFER_LENGTH / 2 / 4096) && UNLIKELY(!ExitSign));
+            while (!flushing && UNLIKELY(!ExitSign));
             qLogDebug("Flusher: Ready to flush to disk");
             if (UNLIKELY(ExitSign)) {
                 while (!last_flush);
@@ -72,13 +70,16 @@ namespace polar_race {
             if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
                 internal_buffer_index = 0;
                 flushing = false;
+                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH/2, INTERNAL_BUFFER_LENGTH, internal_buffer_index);
                 write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
                       INTERNAL_BUFFER_LENGTH / 2);
             } else {
                 flushing = false;
+                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", 0lu, INTERNAL_BUFFER_LENGTH/2, internal_buffer_index);
                 write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
             }
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
+            qLogDebugfmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
 }

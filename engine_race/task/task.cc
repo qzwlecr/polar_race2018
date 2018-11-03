@@ -137,7 +137,8 @@ namespace polar_race {
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
-                        memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset, BUFFER_SIZE), VAL_SIZE);
+                        memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset,INTERNAL_BUFFER_LENGTH), VAL_SIZE);
+                        qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 8).c_str());
                         // check WrittenIndex again
                         if (file_offset >= WrittenIndex) {
                             // then we should return it
@@ -214,6 +215,7 @@ namespace polar_race {
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx
                 global_index_store.put(*reinterpret_cast<uint64_t *>(rr.key), file_offset);
+                qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
