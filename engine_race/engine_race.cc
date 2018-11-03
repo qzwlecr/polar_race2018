@@ -163,7 +163,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
@@ -188,7 +188,6 @@ namespace polar_race {
     RetCode EngineRace::Read(const PolarString &key, std::string *value) {
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
-        qLogDebugfmt("Engine::Read Init K %s", KVArrayDump(rr.key, 8).c_str());
         rr.type = RequestType::TYPE_RD;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
@@ -196,7 +195,8 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true));
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+        qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
