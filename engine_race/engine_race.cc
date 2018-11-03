@@ -65,8 +65,9 @@ namespace polar_race {
         *eptr = NULL;
         EngineRace *engine_race = new EngineRace(name);
         qLogInfofmt("Startup: EngineName %s", name.c_str());
-        qLogInfofmt("Startup: Pre-Creating %s to prevent Hander gg..", VALUES_PATH.c_str());
+        qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
+            qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());
             creat(VALUES_PATH.c_str(), 0666);
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
@@ -75,6 +76,7 @@ namespace polar_race {
                 abort();
             }
         } else {
+            qLogInfofmt("Startup: Acquiring Lock of %s", VALUES_PATH.c_str());
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
             if(lockv != 0){
@@ -159,7 +161,9 @@ namespace polar_race {
         running = false;
         qLogInfo("Closing: closing sockets..");
         for (int i = 0; i < UDS_NUM; i++) {
-            requestfds[i].close();
+            if(requestfds[i].close()){
+                qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
+            }
         }
     }
 
