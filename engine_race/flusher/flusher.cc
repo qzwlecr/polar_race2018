@@ -11,10 +11,9 @@ namespace polar_race {
     volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
-    char *RealInternalBuffer;
 
     void Flusher::flush_begin() {
-        InternalBuffer = RealInternalBuffer;
+        InternalBuffer;
         thread flush_reader(&Flusher::read, this);
         flush_reader.detach();
         thread flush_executor(&Flusher::flush, this);
@@ -23,7 +22,7 @@ namespace polar_race {
     }
 
     void *Flusher::read() {
-        for (uint64_t index = 0;; index++) {
+        for (uint64_t index = WrittenIndex % COMMIT_QUEUE_LENGTH;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
             while (CommitCompletionQueue[index] == 0) {
@@ -32,7 +31,11 @@ namespace polar_race {
                     return nullptr;
                 }
             }
-            while (internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096);
+            if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / 4096) ||
+                   internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096){
+                flushing = true;
+            }
+            while(flushing);
             memcpy(InternalBuffer + internal_buffer_index * 4096,
                    CommitQueue + index * 4096,
                    4096);
@@ -47,31 +50,35 @@ namespace polar_race {
         int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
-            while (internal_buffer_index != INTERNAL_BUFFER_LENGTH / 4096 && UNLIKELY(!ExitSign));
+            while (internal_buffer_index != (INTERNAL_BUFFER_LENGTH / 4096) &&
+                   internal_buffer_index != (INTERNAL_BUFFER_LENGTH / 2 / 4096) && UNLIKELY(!ExitSign));
             qLogDebug("Flusher: Ready to flush to disk");
             if (UNLIKELY(ExitSign)) {
                 while (!last_flush);
-                write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH);
-                WrittenIndex += INTERNAL_BUFFER_LENGTH;
+                if (WrittenIndex % INTERNAL_BUFFER_LENGTH) {
+                    write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
+                          INTERNAL_BUFFER_LENGTH / 2);
+                    WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
+                } else {
+                    write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH);
+                    WrittenIndex += INTERNAL_BUFFER_LENGTH;
+                }
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 global_index_store.persist(index_fd);
                 close(index_fd);
                 close(fd);
                 exit(0);
             }
-            internal_buffer_part = 1 - internal_buffer_part;
-            InternalBuffer = RealInternalBuffer + internal_buffer_part * INTERNAL_BUFFER_LENGTH;
-            qLogDebugfmt("Flusher: Flushing to disk, part=[%d], index=[%lu]", internal_buffer_part,
-                         internal_buffer_index);
-            internal_buffer_index = 0;
-
-            ssize_t ret = write(fd, RealInternalBuffer + (1 - internal_buffer_part) * INTERNAL_BUFFER_LENGTH,
-                                INTERNAL_BUFFER_LENGTH);
-            if (ret == -1) {
-                char *err = strerror(errno);
-                qLogDebugfmt("Flusher: Can't write to disk, %s", err);
+            if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
+                internal_buffer_index = 0;
+                flushing = false;
+                write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
+                      INTERNAL_BUFFER_LENGTH / 2);
+            } else {
+                flushing = false;
+                write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
             }
-            WrittenIndex += INTERNAL_BUFFER_LENGTH;
+            WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
         }
     }
 }

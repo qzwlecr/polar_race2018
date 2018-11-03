@@ -35,7 +35,7 @@ namespace polar_race {
 
         volatile uint64_t internal_buffer_index = 0;
         volatile bool last_flush = false;
-        uint32_t internal_buffer_part = 0;
+        volatile bool flushing = false;
 
     };
 }
