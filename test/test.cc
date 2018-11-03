@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string>
 #include "include/engine.h"
+#include "../engine_race/format/log.h"
 
 #include <thread>
 #include <mutex>
@@ -140,27 +141,12 @@ void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsi
         auto &key = keys[rng.nextNum()];
         std::string val;
         engine->Read(key, &val);
-        unsigned short *vtemp = (unsigned short *) val.c_str();
-        cout << "[val]" << endl;
-        for (int i = 0; i < 5; ++i) {
-            cout << (int) vtemp[i] << " ";
-        }
-        cout << endl;
-        unsigned short *vtemp2 = (unsigned short *) key.c_str();
-        cout << "[key ideal]" << endl;
-        for (int i = 0; i< 5; ++i) {
-            cout << (int) vtemp2[i] << " ";
-        }
-        cout << endl;
-        unsigned short *vtemp3 = (unsigned short *) key_from_value(val).c_str();
-        cout << "[key real]" << endl;
-        for (int i = 0; i < 5; ++i) {
-            cout << (int) vtemp3[i] << " ";
-        }
-        cout << endl;
+        qLogDebugfmt("Tester: Using %s as Key", KVArrayDump(key.c_str(), 8).c_str());
+        qLogDebugfmt("Tester: Value %s returned", KVArrayDump(val.c_str(), 8).c_str());
+        qLogDebugfmt("Tester: Key %s Generated from returned value", KVArrayDump(key_from_value(val).c_str(), 8).c_str());
         //if (key != hash_to_str(fnv1_hash_64(val)) {
         if (key != key_from_value(val)) {
-            std::cout << "Random Read error: key and value not match" << std::endl;
+            qLogFail("Tester: Random Read error: key and value not match");
             exit(-1);
         }
     }

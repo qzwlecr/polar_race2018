@@ -169,11 +169,13 @@ namespace polar_race {
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
         if (rv == -1) {
             return kIOError;
         }
@@ -199,17 +201,21 @@ namespace polar_race {
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        if (rv == -1) {
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
+        if (rv != sizeof(RequestResponse)){
+            qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
         }
         if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
+        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(), KVArrayDump(rr.value, 8).c_str());
         *value = string(rr.value);
         return kSucc;
     }

@@ -121,7 +121,7 @@ namespace polar_race {
             if (rr.type == RequestType::TYPE_RD) {
                 uint64_t key = *reinterpret_cast<uint64_t *>(rr.key);
                 uint64_t file_offset = 0;
-                qLogDebugfmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 5).c_str());
+                qLogDebugfmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 8).c_str());
                 // look up in global index store
                 if (!global_index_store.get(key, file_offset)) {
                     // not found
@@ -194,7 +194,7 @@ namespace polar_race {
                             // read OK.
                             // release the spyce!
                             qLogInfofmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
-                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 5).c_str());
+                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 8).c_str());
                             rr.type = RequestType::TYPE_OK;
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
                             if (sv == -1) {
