@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <unistd.h>
 
+#define LDOMAIN(x) ((x) + 1)
 using namespace std;
 
 namespace polar_race {
@@ -40,7 +41,7 @@ namespace polar_race {
                       reinterpret_cast<struct sockaddr *>(&tmpaddr),
                       sizeof(struct sockaddr_un));
         if (rv == -1) {
-            qLogFailfmt("UDS Bind [%s] failed: %s", addr.c_str(), strerror(errno));
+            qLogFailfmt("UDS Bind [%s] failed: %s", LDOMAIN(addr.c_str()), strerror(errno));
             abort();
         }
         desc = sock;

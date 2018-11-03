@@ -15,6 +15,7 @@ extern "C"{
     #include "signames.h"
 #include "signal.h"
 #include <sys/stat.h>
+#include <sys/file.h>
 }
 
 using namespace std;
@@ -44,6 +45,7 @@ namespace polar_race {
     Accumulator requestId(0);
     bool start_ok = false;
     bool running = true;
+    volatile int lockfd = -1;
 
     Flusher flusher;
 
@@ -66,7 +68,19 @@ namespace polar_race {
         qLogInfofmt("Startup: Pre-Creating %s to prevent Hander gg..", VALUES_PATH.c_str());
         if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
             creat(VALUES_PATH.c_str(), 0666);
+            lockfd = open(VALUES_PATH.c_str(), 0);
+            int lockv = flock(lockfd, LOCK_EX);
+            if(lockv != 0){
+                qLogFailfmt("Startup: Acquiring file lock failed: %s", strerror(errno));
+                abort();
+            }
         } else {
+            lockfd = open(VALUES_PATH.c_str(), 0);
+            int lockv = flock(lockfd, LOCK_EX);
+            if(lockv != 0){
+                qLogFailfmt("Startup: Acquiring file lock failed: %s", strerror(errno));
+                abort();
+            }
             struct stat valfstat = {0};
             int sv = stat(VALUES_PATH.c_str(), &valfstat);
             if(sv != 0){

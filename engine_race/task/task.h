@@ -11,6 +11,7 @@ namespace polar_race {
     extern volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     extern volatile uint64_t WrittenIndex;
     extern char *InternalBuffer;
+    extern volatile int lockfd;
 
     extern volatile bool ExitSign; // on true, execute exit clean proc
 

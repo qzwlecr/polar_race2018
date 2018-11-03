@@ -44,6 +44,7 @@ namespace polar_race {
             qLogInfo("HeartBeater: beat!");
             sleep(1);
         }
+        hbmb.close();
     }
 
     void HeartBeatChecker(string recvaddr) {
@@ -78,8 +79,8 @@ namespace polar_race {
                 // timed out!
                 ExitSign = true;
                 // do clean work
-                /* mp.close(); */
-                /* hbcmb.close(); */
+                mp.close();
+                hbcmb.close();
                 return;
             }
             // not very ok exactly..
