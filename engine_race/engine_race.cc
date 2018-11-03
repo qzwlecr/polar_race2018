@@ -1,4 +1,8 @@
 // Copyright [2018] Alibaba Cloud All rights reserved
+#ifdef _POSIX_C_SOURCE
+#undef _POSIX_C_SOURCE
+#endif
+#define _POSIX_C_SOURCE 201012
 #include "engine_race.h"
 #include <unistd.h>
 #include "consts/consts.h"
@@ -11,19 +15,26 @@
 #include <stdlib.h>
 #include <malloc.h>
 
+
 extern "C"{
     #include "signames.h"
-#include "signal.h"
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 }
 
 using namespace std;
 
-#define FAILED_TEXT "[  " Q_FMT_APPLY(Q_COLOR_RED) "FAIL" Q_FMT_APPLY(Q_COLOR_RESET) "  ]"
+#define FAILED_TEXT "[" Q_FMT_APPLY(Q_COLOR_RED) "FAIL" Q_FMT_APPLY(Q_COLOR_RESET) "] (**SIGNAL**)"
 
 void signal_handler(int sig){
     fprintf(stderr, "%s received signal %s: %s\n", FAILED_TEXT, signal_names[sig], strsignal(sig));
+    exit(-1);
+}
+
+void signal_dump(int sig, siginfo_t* siginfo, void* vuctx){
+    fprintf(stderr, "%s received signal %s: %s\n", FAILED_TEXT, signal_names[sig], strsignal(sig));
+    psiginfo(siginfo, FAILED_TEXT "Signal info dump ");
     exit(-1);
 }
 
@@ -133,11 +144,39 @@ namespace polar_race {
             // child
             qLogInfo("RequestHandler: FORK completed.");
             qLogInfo("RequestHandler: Setup termination detector.");
-            signal(SIGABRT, signal_handler);
-            signal(SIGFPE, signal_handler);
-            signal(SIGINT, signal_handler);
-            signal(SIGSEGV, signal_handler);
-            signal(SIGTERM, signal_handler);
+            if(!SIGNAL_FULL_DUMP){
+                signal(SIGABRT, signal_handler);
+                signal(SIGFPE, signal_handler);
+                signal(SIGINT, signal_handler);
+                signal(SIGSEGV, signal_handler);
+                signal(SIGTERM, signal_handler);
+            } else {
+                struct sigaction repact = {0};
+                repact.sa_sigaction = signal_dump;
+                repact.sa_flags = SA_SIGINFO;
+                sigemptyset(&(repact.sa_mask));
+                int sigv = 0;
+                sigv = sigaction(SIGABRT, &repact, NULL);
+                if(sigv == -1){
+                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGABRT failed: %s", strerror(errno));
+                }
+                sigv = sigaction(SIGFPE, &repact, NULL);
+                if(sigv == -1){
+                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGFPE failed: %s", strerror(errno));
+                }
+                sigv = sigaction(SIGINT, &repact, NULL);
+                if(sigv == -1){
+                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGINT failed: %s", strerror(errno));
+                }
+                sigv = sigaction(SIGSEGV, &repact, NULL);
+                if(sigv == -1){
+                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGSEGV failed: %s", strerror(errno));
+                }
+                sigv = sigaction(SIGTERM, &repact, NULL);
+                if(sigv == -1){
+                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
+                }
+            }
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
@@ -151,7 +190,9 @@ namespace polar_race {
             hbdtrd.detach();
             start_ok = true;
             qLogInfo("RequestHandler: everything OK, will now go to indefinite sleep!!");
-            select(1, NULL, NULL, NULL, NULL);
+            while(true){
+                select(1, NULL, NULL, NULL, NULL);
+            }
             qLogFail("RequestHandler: finished waiting from select(). exiting//");
             exit(1);
         }
