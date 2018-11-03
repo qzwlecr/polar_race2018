@@ -88,7 +88,9 @@ namespace polar_race {
             auto len = computeSize(size);
 
             int extraflags = 0;
+#if defined(MAP_POPULATE)
             extraflags |= MAP_POPULATE;
+#endif
             void *mem = static_cast<void *>(mmap(
                     nullptr,
                     len,
@@ -99,6 +101,9 @@ namespace polar_race {
             if (mem == reinterpret_cast<void *>(-1)) {
                 throw std::system_error(errno, std::system_category());
             }
+#if !defined(MAP_POPULATE) && defined(MADV_WILLNEED)
+    madvise(mem, size, MADV_WILLNEED);
+#endif
             return mem;
         }
 

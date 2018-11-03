@@ -16,7 +16,7 @@ namespace polar_race {
 
     struct sockaddr_un mksockaddr_un(const char *addr, size_t addrlen);
 
-    using Accumulator=std::atomic_uint64_t;
+    using Accumulator=typename std::atomic<uint64_t>;
     namespace RequestType {
         const uint8_t TYPE_RD = 0;
         const uint8_t TYPE_WR = 1;
