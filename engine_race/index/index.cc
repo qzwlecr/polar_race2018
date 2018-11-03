@@ -3,6 +3,8 @@
 
 namespace polar_race {
     IndexStore global_index_store;
+    std::mt19937 eng;
+    std::uniform_int_distribution<uint32_t> uid;
 
     bool IndexStore::put(uint64_t key, uint64_t offset) {
 
@@ -27,9 +29,9 @@ namespace polar_race {
     }
 
     IndexStore::IndexStore() : hashmap(HASH_MAP_SIZE) {
-        //for (;;) {
-        // TODO: Load index from disk
-        //}
+        std::random_device r;
+        eng = std::mt19937(r());
+        uid = std::uniform_int_distribution<uint32_t>(0, 80000128);
     }
 
     void IndexStore::persist(int fd) {
