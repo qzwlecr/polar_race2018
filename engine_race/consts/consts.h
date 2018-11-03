@@ -16,6 +16,7 @@ namespace polar_race {
 	const std::string VALUES_PATH = "./ralopdb.dat";
 	const std::string INDECIES_PATH = "./ralopdb_index.dat";
     const int UDS_CONGEST_AMPLIFIER = 2;
+    const bool UDS_BIND_FAIL_SUPRESS = true;
 };
 
 #endif

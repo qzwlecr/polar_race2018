@@ -37,12 +37,21 @@ namespace polar_race {
             qLogFailfmt("UDS Creation failed: %s", strerror(errno));
             abort();
         }
-        int rv = bind(sock,
-                      reinterpret_cast<struct sockaddr *>(&tmpaddr),
-                      sizeof(struct sockaddr_un));
-        if (rv == -1) {
-            qLogFailfmt("UDS Bind [%s] failed: %s", LDOMAIN(addr.c_str()), strerror(errno));
-            abort();
+        while(true){
+            int rv = bind(sock,
+                          reinterpret_cast<struct sockaddr *>(&tmpaddr),
+                          sizeof(struct sockaddr_un));
+            if (rv == -1) {
+                if(UDS_BIND_FAIL_SUPRESS){
+                    qLogWarnfmt("UDS Bind (%d)[%s] failed: %s", sock, LDOMAIN(addr.c_str()), strerror(errno)); 
+                    qLogWarn("Due to configuration, this ERROR is suppressed to Warning, and will retry in 1s.");
+                    sleep(1);
+                    continue;
+                } else {
+                    qLogFailfmt("UDS Bind [%s] failed: %s", LDOMAIN(addr.c_str()), strerror(errno)); 
+                    abort();
+                }
+            }
         }
         desc = sock;
         // now this socket is suitable for calling RECVFROM, we stop here.

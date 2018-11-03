@@ -4,3 +4,4 @@ all:
 
 clean:
 	rm test test_with_kill
+	rm ralopdb*
