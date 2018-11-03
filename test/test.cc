@@ -140,24 +140,24 @@ void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsi
         auto &key = keys[rng.nextNum()];
         std::string val;
         engine->Read(key, &val);
-//        unsigned short *vtemp = (unsigned short *) val.c_str();
-//        cout << "[val]" << endl;
-//        for (int i = 0; i < 5; ++i) {
-//            cout << (int) vtemp[i] << " ";
-//        }
-//        cout << endl;
-//        unsigned short *vtemp2 = (unsigned short *) key.c_str();
-//        cout << "[key ideal]" << endl;
-//        for (int i = 0; i< 5; ++i) {
-//            cout << (int) vtemp2[i] << " ";
-//        }
-//        cout << endl;
-//        unsigned short *vtemp3 = (unsigned short *) key_from_value(val).c_str();
-//        cout << "[key real]" << endl;
-//        for (int i = 0; i < 5; ++i) {
-//            cout << (int) vtemp3[i] << " ";
-//        }
-//        cout << endl;
+        unsigned short *vtemp = (unsigned short *) val.c_str();
+        cout << "[val]" << endl;
+        for (int i = 0; i < 5; ++i) {
+            cout << (int) vtemp[i] << " ";
+        }
+        cout << endl;
+        unsigned short *vtemp2 = (unsigned short *) key.c_str();
+        cout << "[key ideal]" << endl;
+        for (int i = 0; i< 5; ++i) {
+            cout << (int) vtemp2[i] << " ";
+        }
+        cout << endl;
+        unsigned short *vtemp3 = (unsigned short *) key_from_value(val).c_str();
+        cout << "[key real]" << endl;
+        for (int i = 0; i < 5; ++i) {
+            cout << (int) vtemp3[i] << " ";
+        }
+        cout << endl;
         //if (key != hash_to_str(fnv1_hash_64(val)) {
         if (key != key_from_value(val)) {
             std::cout << "Random Read error: key and value not match" << std::endl;

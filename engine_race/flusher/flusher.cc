@@ -44,16 +44,16 @@ namespace polar_race {
     }
 
     void *Flusher::flush() {
-        int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT);
+        int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
             while (internal_buffer_index != INTERNAL_BUFFER_LENGTH / 4096 && UNLIKELY(!ExitSign));
             qLogDebug("Flusher: Ready to flush to disk");
             if (UNLIKELY(ExitSign)) {
                 while (!last_flush);
-                write(fd, InternalBuffer, internal_buffer_index * 4096);
-                WrittenIndex += internal_buffer_index;
-                int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR);
+                write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH);
+                WrittenIndex += INTERNAL_BUFFER_LENGTH;
+                int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 global_index_store.persist(index_fd);
                 close(index_fd);
                 close(fd);
