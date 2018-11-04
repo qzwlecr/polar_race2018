@@ -31,7 +31,7 @@ namespace polar_race {
     IndexStore::IndexStore() : hashmap(HASH_MAP_SIZE) {
         std::random_device r;
         eng = std::mt19937(r());
-        uid = std::uniform_int_distribution<uint32_t>(0, 80000128);
+        uid = std::uniform_int_distribution<uint32_t>(0, uint32_t(HASH_MAP_SIZE / 0.8f + 128));
     }
 
     void IndexStore::persist(int fd) {
