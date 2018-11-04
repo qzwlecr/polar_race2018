@@ -41,7 +41,7 @@ namespace polar_race {
                 qLogWarnfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));
                 /* abort(); */
             }
-            qLogInfo("HeartBeater: beat!");
+            qLogDebug("HeartBeater: beat!");
             sleep(1);
         }
         hbmb.close();
@@ -85,7 +85,7 @@ namespace polar_race {
             }
             // not very ok exactly..
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
-            qLogInfo("HeartBeatChecker: beat!");
+            qLogDebug("HeartBeatChecker: beat!");
             if (unlikely(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
                 ExitSign = true;
@@ -126,7 +126,7 @@ namespace polar_race {
                 // look up in global index store
                 if (!global_index_store.get(key, file_offset)) {
                     // not found
-                    qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
+                    qLogDebugfmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr.type = RequestType::TYPE_EEXIST;
                     int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
                     if (sv == -1) {
@@ -143,7 +143,7 @@ namespace polar_race {
                         // check WrittenIndex again
                         if (file_offset >= WrittenIndex) {
                             // then we should return it
-                            qLogInfofmt("RequestProcessor[%s]: Value found on InternalBuffer",
+                            qLogDebugfmt("RequestProcessor[%s]: Value found on InternalBuffer",
                                         LDOMAIN(recvaddr.c_str()));
                             rr.type = RequestType::TYPE_OK;
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
@@ -152,7 +152,7 @@ namespace polar_race {
                                             STRERR);
                                 abort();
                             }
-                            qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                            qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
                             continue;
                         }
                     }
@@ -195,7 +195,7 @@ namespace polar_race {
                         } else {
                             // read OK.
                             // release the spyce!
-                            qLogInfofmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
+                            qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
                             qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 8).c_str());
                             rr.type = RequestType::TYPE_OK;
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
@@ -207,9 +207,9 @@ namespace polar_race {
                         }
                     }
                 }
-                qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             } else {
-                qLogInfofmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
+                qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                         *reinterpret_cast<uint16_t*>(rr.key), *reinterpret_cast<uint16_t*>(rr.value));
                 // get New Index
@@ -229,14 +229,14 @@ namespace polar_race {
                 // wait it gets flush'd
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // generate return information.
-                qLogInfofmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
+                qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
                 rr.type = RequestType::TYPE_OK;
                 int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
                 if (sv == -1) {
                     qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                     abort();
                 }
-                qLogInfofmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             }
         }
     }
