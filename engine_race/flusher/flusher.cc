@@ -48,6 +48,10 @@ namespace polar_race {
 
     void *Flusher::flush() {
         int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
+        if(fd == -1){
+            qLogFailfmt("Flusher: cannot open values file %s, error %s", VALUES_PATH.c_str(), strerror(errno));
+            abort();
+        }
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
             while (!flushing && UNLIKELY(!ExitSign));
