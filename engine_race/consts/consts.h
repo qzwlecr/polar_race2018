@@ -13,8 +13,10 @@ namespace polar_race {
 	const std::size_t HASH_MAP_SIZE = 64000000;
 	const uint64_t COMMIT_QUEUE_LENGTH = 2048;
 	const uint64_t INTERNAL_BUFFER_LENGTH = 1024 * 4096;
-	const std::string VALUES_PATH = "./ralopdb.dat";
-	const std::string INDECIES_PATH = "./ralopdb_index.dat";
+	const std::string VALUES_PATH_SUFFIX = "/ralopdb.dat";
+	const std::string INDECIES_PATH_SUFFIX = "/ralopdb_index.dat";
+    std::string VALUES_PATH;
+    std::string INDECIES_PATH;
     const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;
