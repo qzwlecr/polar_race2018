@@ -49,6 +49,9 @@ namespace polar_race {
 
     const int UDS_NUM = CONCURRENT_QUERY * UDS_CONGEST_AMPLIFIER;
 
+    std::string VALUES_PATH;
+    std::string INDECIES_PATH;
+    
     string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     MailBox requestfds[UDS_NUM];
@@ -81,6 +84,9 @@ namespace polar_race {
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
             qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());
+            if(access(name.c_str(), F_OK)){
+                mkdir(name.c_str(), 0755);
+            }
             creat(VALUES_PATH.c_str(), 0666);
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
