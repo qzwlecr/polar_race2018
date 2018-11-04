@@ -122,11 +122,11 @@ namespace polar_race {
             if (rr.type == RequestType::TYPE_RD) {
                 uint64_t key = *reinterpret_cast<uint64_t *>(rr.key);
                 uint64_t file_offset = 0;
-                qLogDebugfmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 8).c_str());
+                qLogSuccfmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 2).c_str());
                 // look up in global index store
                 if (!global_index_store->get(key, file_offset)) {
                     // not found
-                    qLogDebugfmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
+                    qLogSuccfmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr.type = RequestType::TYPE_EEXIST;
                     int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
                     if (sv == -1) {
@@ -134,12 +134,12 @@ namespace polar_race {
                         abort();
                     }
                 } else {
-                    qLogDebugfmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()), file_offset, WrittenIndex);
+                    qLogSuccfmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()), file_offset, WrittenIndex);
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
                         memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset,INTERNAL_BUFFER_LENGTH), VAL_SIZE);
-                        qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 8).c_str());
+                        qLogSuccfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 2).c_str());
                         // check WrittenIndex again
                         if (file_offset >= WrittenIndex) {
                             // then we should return it
@@ -196,7 +196,7 @@ namespace polar_race {
                             // read OK.
                             // release the spyce!
                             qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
-                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 8).c_str());
+                            qLogSuccfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 2).c_str());
                             rr.type = RequestType::TYPE_OK;
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
                             if (sv == -1) {

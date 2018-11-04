@@ -110,7 +110,7 @@ namespace polar_race {
                 qLogFailfmt("Startup: Values file exist, but unable to get its size: %s", strerror(errno));
                 abort();
             }
-            qLogInfofmt("Startup: Set file size to %lu", valfstat.st_size);
+            qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
@@ -230,9 +230,9 @@ namespace polar_race {
 
 // 2. Close engine
     EngineRace::~EngineRace() {
-        qLogInfo("Engine:: Destructing..");
+        qLogSucc("Engine:: Destructing..");
         running = false;
-        qLogInfo("Engine:: Closing UDSs..");
+        qLogSucc("Engine:: Closing UDSs..");
         for (int i = 0; i < UDS_NUM; i++) {
             if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));

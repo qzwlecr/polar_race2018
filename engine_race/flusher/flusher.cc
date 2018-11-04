@@ -69,7 +69,7 @@ namespace polar_race {
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 global_index_store->persist(index_fd);
                 flock(lockfd, LOCK_UN);
-                qLogDebug("Flusher unlocked filelock");
+                qLogSucc("Flusher unlocked filelock");
                 close(index_fd);
                 close(fd);
                 exit(0);
@@ -86,7 +86,7 @@ namespace polar_race {
                 write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
             }
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
-            qLogDebugfmt("Flusher: written index = %lu", WrittenIndex);
+            qLogSuccfmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
 }
