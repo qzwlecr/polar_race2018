@@ -17,22 +17,25 @@
 
 
 extern "C"{
-    #include "signames.h"
+#include "signames.h"
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 }
 
 using namespace std;
 
 #define FAILED_TEXT "[" Q_FMT_APPLY(Q_COLOR_RED) "FAIL" Q_FMT_APPLY(Q_COLOR_RESET) "] (**SIGNAL**)"
 
-void signal_handler(int sig){
+void signal_handler(int sig) {
     fprintf(stderr, "%s received signal %s: %s\n", FAILED_TEXT, signal_names[sig], strsignal(sig));
     exit(-1);
 }
 
-void signal_dump(int sig, siginfo_t* siginfo, void* vuctx){
+void signal_dump(int sig, siginfo_t *siginfo, void *vuctx) {
     fprintf(stderr, "%s received signal %s: %s\n", FAILED_TEXT, signal_names[sig], strsignal(sig));
     psiginfo(siginfo, FAILED_TEXT "Signal info dump ");
     exit(-1);
@@ -51,13 +54,12 @@ namespace polar_race {
 
     std::string VALUES_PATH;
     std::string INDECIES_PATH;
-    
+
     string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     MailBox requestfds[UDS_NUM];
     atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
-    bool start_ok = false;
     bool running = true;
     volatile int lockfd = -1;
 
@@ -82,15 +84,15 @@ namespace polar_race {
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
         qLogSuccfmt("Startup: EngineName %s", name.c_str());
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
-        if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
+        if (access(VALUES_PATH.c_str(), R_OK | W_OK)) {
             qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());
-            if(access(name.c_str(), F_OK)){
+            if (access(name.c_str(), F_OK)) {
                 mkdir(name.c_str(), 0755);
             }
             creat(VALUES_PATH.c_str(), 0666);
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
-            if(lockv != 0){
+            if (lockv != 0) {
                 qLogFailfmt("Startup: Acquiring file lock failed: %s", strerror(errno));
                 abort();
             }
@@ -98,13 +100,13 @@ namespace polar_race {
             qLogSuccfmt("Startup: Acquiring Lock of %s", VALUES_PATH.c_str());
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
-            if(lockv != 0){
+            if (lockv != 0) {
                 qLogFailfmt("Startup: Acquiring file lock failed: %s", strerror(errno));
                 abort();
             }
             struct stat valfstat = {0};
             int sv = stat(VALUES_PATH.c_str(), &valfstat);
-            if(sv != 0){
+            if (sv != 0) {
                 qLogFailfmt("Startup: Values file exist, but unable to get its size: %s", strerror(errno));
                 abort();
             }
@@ -112,8 +114,17 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
+
+        int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
+        if(sem == -1){
+            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+            abort();
+        }
+        if(semctl(sem, 0, SETVAL, 1) == -1) {
+            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+            abort();
+        }
         qLogInfo("Startup: resetting Global Variables");
-        start_ok = false;
         running = true;
         qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
@@ -130,22 +141,26 @@ namespace polar_race {
             }
             reqfds_occupy[i] = false;
         }
-        InternalBuffer = (char*)memalign(4096, INTERNAL_BUFFER_LENGTH);
+        InternalBuffer = (char *) memalign(4096, INTERNAL_BUFFER_LENGTH);
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent
             qLogSucc("Startup: FORK completed.");
-            qLogInfo("Startup: wait ReqHandler startup complete.");
-            sleep(2);
             qLogSucc("Startup: HeartBeat thread.");
             thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
+            // qLogInfo("Startup: wait ReqHandler startup complete.");
+            struct sembuf sem_buf{
+                    .sem_num = 0,
+                    .sem_op = 0
+            };
+            semop(sem, &sem_buf, 1);
             qLogSucc("Startup: Everything OK.");
         } else {
             // child
             qLogInfo("RequestHandler: FORK completed.");
             qLogInfo("RequestHandler: Setup termination detector.");
-            if(!SIGNAL_FULL_DUMP){
+            if (!SIGNAL_FULL_DUMP) {
                 signal(SIGABRT, signal_handler);
                 signal(SIGFPE, signal_handler);
                 signal(SIGINT, signal_handler);
@@ -158,23 +173,23 @@ namespace polar_race {
                 sigemptyset(&(repact.sa_mask));
                 int sigv = 0;
                 sigv = sigaction(SIGABRT, &repact, NULL);
-                if(sigv == -1){
+                if (sigv == -1) {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGABRT failed: %s", strerror(errno));
                 }
                 sigv = sigaction(SIGFPE, &repact, NULL);
-                if(sigv == -1){
+                if (sigv == -1) {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGFPE failed: %s", strerror(errno));
                 }
                 sigv = sigaction(SIGINT, &repact, NULL);
-                if(sigv == -1){
+                if (sigv == -1) {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGINT failed: %s", strerror(errno));
                 }
                 sigv = sigaction(SIGSEGV, &repact, NULL);
-                if(sigv == -1){
+                if (sigv == -1) {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGSEGV failed: %s", strerror(errno));
                 }
                 sigv = sigaction(SIGTERM, &repact, NULL);
-                if(sigv == -1){
+                if (sigv == -1) {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
@@ -197,9 +212,13 @@ namespace polar_race {
             }
             thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
-            start_ok = true;
+            struct sembuf sem_buf{
+                    .sem_num = 0,
+                    .sem_op = -1
+            };
+            semop(sem, &sem_buf, 1);
             qLogSucc("RequestHandler: everything OK, will now go to indefinite sleep!!");
-            while(true){
+            while (true) {
                 select(1, NULL, NULL, NULL, NULL);
             }
             qLogFail("RequestHandler: finished waiting from select(). exiting//");
@@ -215,7 +234,7 @@ namespace polar_race {
         running = false;
         qLogInfo("Engine:: Closing UDSs..");
         for (int i = 0; i < UDS_NUM; i++) {
-            if(requestfds[i].close()){
+            if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
         }
@@ -224,7 +243,8 @@ namespace polar_race {
 // 3. Write a key-value pair into engine
     RetCode EngineRace::Write(const PolarString &key, const PolarString &value) {
         qLogDebugfmt("Engine::Write: K %hu => V %hu",
-                *reinterpret_cast<const uint16_t*>(key.data()), *reinterpret_cast<const uint16_t*>(value.data()));
+                     *reinterpret_cast<const uint16_t *>(key.data()),
+                     *reinterpret_cast<const uint16_t *>(value.data()));
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         memcpy(rr.value, value.data(), VAL_SIZE);
@@ -280,14 +300,15 @@ namespace polar_race {
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
         reqfds_occupy[reqIdx % UDS_NUM] = false;
-        if (rv != sizeof(RequestResponse)){
+        if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
         }
         if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
-        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(), KVArrayDump(rr.value, 8).c_str());
+        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
+                     KVArrayDump(rr.value, 8).c_str());
         *value = string(rr.value, VAL_SIZE);
         return kSucc;
     }
