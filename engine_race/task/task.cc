@@ -124,7 +124,7 @@ namespace polar_race {
                 uint64_t file_offset = 0;
                 qLogDebugfmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 8).c_str());
                 // look up in global index store
-                if (!global_index_store.get(key, file_offset)) {
+                if (!global_index_store->get(key, file_offset)) {
                     // not found
                     qLogDebugfmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr.type = RequestType::TYPE_EEXIST;
@@ -215,7 +215,7 @@ namespace polar_race {
                 // get New Index
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx
-                global_index_store.put(*reinterpret_cast<uint64_t *>(rr.key), file_offset);
+                global_index_store->put(*reinterpret_cast<uint64_t *>(rr.key), file_offset);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // flush into CommitQueue

@@ -2,7 +2,7 @@
 #include <index/index.h>
 
 namespace polar_race {
-    IndexStore global_index_store;
+    IndexStore *global_index_store;
     std::mt19937 eng;
     std::uniform_int_distribution<uint32_t> uid;
 

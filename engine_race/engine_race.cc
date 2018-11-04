@@ -130,13 +130,6 @@ namespace polar_race {
             }
             reqfds_occupy[i] = false;
         }
-        qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
-        if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
-            qLogInfo("Startup: Unpersisting..");
-            int fd = open(INDECIES_PATH.c_str(), 0);
-            global_index_store.unpersist(fd);
-            close(fd);
-        }
         InternalBuffer = (char*)memalign(4096, INTERNAL_BUFFER_LENGTH);
         qLogInfo("Startup: FORK !");
         if (fork()) {
@@ -194,6 +187,14 @@ namespace polar_race {
             qLogSucc("RequestHandler: starting Disk Operation thread..");
             flusher.flush_begin();
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
+            global_index_store = new IndexStore();
+            qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
+            if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
+                qLogInfo("Startup: Unpersisting..");
+                int fd = open(INDECIES_PATH.c_str(), 0);
+                global_index_store->unpersist(fd);
+                close(fd);
+            }
             thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
             start_ok = true;

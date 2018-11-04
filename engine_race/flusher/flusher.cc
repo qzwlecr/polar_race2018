@@ -67,7 +67,7 @@ namespace polar_race {
                     WrittenIndex += INTERNAL_BUFFER_LENGTH;
                 }
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
-                global_index_store.persist(index_fd);
+                global_index_store->persist(index_fd);
                 flock(lockfd, LOCK_UN);
                 qLogDebug("Flusher unlocked filelock");
                 close(index_fd);
