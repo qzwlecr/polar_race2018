@@ -28,7 +28,7 @@ namespace polar_race {
 #define STRERR (strerror(errno))
 
     void HeartBeater(string sendaddr, bool *running) {
-        qLogInfofmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
+        qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
         MailBox hbmb;
         if (unlikely(hbmb.open() == -1)) {
             qLogFailfmt("HeartBeat MailBox open failed: %s", strerror(errno));
@@ -50,7 +50,7 @@ namespace polar_race {
     void HeartBeatChecker(string recvaddr) {
         // ENSURE
         ExitSign = false;
-        qLogInfofmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
+        qLogSuccfmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (unlikely(hbcmb.desc == -1)) {
             qLogFailfmt("HeartBeatChecker MailBox open failed: %s", strerror(errno));

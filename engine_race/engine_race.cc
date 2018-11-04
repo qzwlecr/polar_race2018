@@ -80,7 +80,7 @@ namespace polar_race {
         EngineRace *engine_race = new EngineRace(name);
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
-        qLogInfofmt("Startup: EngineName %s", name.c_str());
+        qLogSuccfmt("Startup: EngineName %s", name.c_str());
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if(access(VALUES_PATH.c_str(), R_OK | W_OK)){
             qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());
@@ -95,7 +95,7 @@ namespace polar_race {
                 abort();
             }
         } else {
-            qLogInfofmt("Startup: Acquiring Lock of %s", VALUES_PATH.c_str());
+            qLogSuccfmt("Startup: Acquiring Lock of %s", VALUES_PATH.c_str());
             lockfd = open(VALUES_PATH.c_str(), 0);
             int lockv = flock(lockfd, LOCK_EX);
             if(lockv != 0){
@@ -115,7 +115,7 @@ namespace polar_race {
         qLogInfo("Startup: resetting Global Variables");
         start_ok = false;
         running = true;
-        qLogInfofmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
+        qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
             recvaddres[i] = string(REQ_ADDR_PREFIX) + ItoS(i);
             rsaddr[i] = mksockaddr_un(recvaddres[i]);
@@ -130,7 +130,7 @@ namespace polar_race {
             }
             reqfds_occupy[i] = false;
         }
-        qLogInfofmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
+        qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
         if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
             qLogInfo("Startup: Unpersisting..");
             int fd = open(INDECIES_PATH.c_str(), 0);
@@ -141,13 +141,13 @@ namespace polar_race {
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent
-            qLogInfo("Startup: FORK completed.");
+            qLogSucc("Startup: FORK completed.");
             qLogInfo("Startup: wait ReqHandler startup complete.");
             sleep(2);
-            qLogInfo("Startup: HeartBeat thread.");
+            qLogSucc("Startup: HeartBeat thread.");
             thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
-            qLogInfo("Startup: Everything OK.");
+            qLogSucc("Startup: Everything OK.");
         } else {
             // child
             qLogInfo("RequestHandler: FORK completed.");
@@ -191,13 +191,13 @@ namespace polar_race {
                 thread handthrd(RequestProcessor, recvaddres[i]);
                 handthrd.detach();
             }
-            qLogInfo("RequestHandler: starting Disk Operation thread..");
+            qLogSucc("RequestHandler: starting Disk Operation thread..");
             flusher.flush_begin();
-            qLogInfo("RequestHandler: starting HeartBeat Detection thread..");
+            qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
             start_ok = true;
-            qLogInfo("RequestHandler: everything OK, will now go to indefinite sleep!!");
+            qLogSucc("RequestHandler: everything OK, will now go to indefinite sleep!!");
             while(true){
                 select(1, NULL, NULL, NULL, NULL);
             }
