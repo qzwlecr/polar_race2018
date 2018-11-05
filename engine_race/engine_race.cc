@@ -59,6 +59,7 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     std::atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
+    Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
 
@@ -193,7 +194,7 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
-            auto flusher = new Flusher();
+            flusher = new Flusher();
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);

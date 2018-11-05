@@ -15,9 +15,13 @@ namespace polar_race {
 
     Flusher::Flusher() {
         size_t pagesize = (size_t) getpagesize();
-        CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * 4096);
-        CommitCompletionQueue = (bool *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
+        CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * VAL_SIZE);
+        CommitCompletionQueue = (volatile bool *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
         InternalBuffer = (char *) memalign(pagesize, INTERNAL_BUFFER_LENGTH);
+        if(CommitQueue == nullptr || CommitCompletionQueue == nullptr || InternalBuffer == nullptr){
+            qLogFailfmt("Flusher: allocating memory error %s", strerror(errno));
+            abort();
+        }
     }
 
     void Flusher::flush_begin() {
@@ -29,7 +33,7 @@ namespace polar_race {
     }
 
     void *Flusher::read() {
-        for (uint64_t index = (WrittenIndex / 4096) % COMMIT_QUEUE_LENGTH;; index++) {
+        for (uint64_t index = (WrittenIndex / VAL_SIZE) % COMMIT_QUEUE_LENGTH;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
             qLogDebugfmt("Flusher: index = %lu, WrittenIndex = %lu", index, WrittenIndex);
@@ -39,14 +43,14 @@ namespace polar_race {
                     return nullptr;
                 }
             }
-            if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / 4096) ||
-                internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
+            if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / VAL_SIZE) ||
+                internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
                 flushing = true;
             }
             while (flushing);
-            memcpy(InternalBuffer + internal_buffer_index * 4096,
-                   CommitQueue + index * 4096,
-                   4096);
+            memcpy(InternalBuffer + internal_buffer_index * VAL_SIZE,
+                   CommitQueue + index * VAL_SIZE,
+                   VAL_SIZE);
             internal_buffer_index++;
             CommitCompletionQueue[index] = 0;
             qLogDebugfmt("Reader: %lu", internal_buffer_index);
@@ -82,11 +86,14 @@ namespace polar_race {
                 }
                 flock(lockfd, LOCK_UN);
                 qLogSucc("Flusher unlocked filelock");
+                free(CommitQueue);
+                free((void*)CommitCompletionQueue);
+                free(InternalBuffer);
                 close(index_fd);
                 close(fd);
                 exit(0);
             }
-            if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
+            if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
                 internal_buffer_index = 0;
                 flushing = false;
                 qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH / 2,
