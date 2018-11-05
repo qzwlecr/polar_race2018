@@ -2,23 +2,16 @@
 // Created by qzwlecr on 10/31/18.
 //
 
-#include <malloc.h>
-#include "flusher/flusher.h"
-#include "index/index.h"
+#include <flusher/flusher.h>
+#include <index/index.h>
+#include "../timer/timer.h"
 
 namespace polar_race {
     using namespace std;
-    char *CommitQueue;
-    volatile bool *CommitCompletionQueue;
+    char CommitQueue[COMMIT_QUEUE_LENGTH * 4096];
+    volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
-
-    Flusher::Flusher() {
-        size_t pagesize = (size_t) getpagesize();
-        CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * 4096);
-        CommitCompletionQueue = (bool *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
-        InternalBuffer = (char *) memalign(pagesize, INTERNAL_BUFFER_LENGTH);
-    }
 
     void Flusher::flush_begin() {
         thread flush_reader(&Flusher::read, this);
@@ -40,10 +33,10 @@ namespace polar_race {
                 }
             }
             if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / 4096) ||
-                internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
+                   internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096){
                 flushing = true;
             }
-            while (flushing);
+            while(flushing);
             memcpy(InternalBuffer + internal_buffer_index * 4096,
                    CommitQueue + index * 4096,
                    4096);
@@ -56,7 +49,7 @@ namespace polar_race {
 
     void *Flusher::flush() {
         int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
-        if (fd == -1) {
+        if(fd == -1){
             qLogFailfmt("Flusher: cannot open values file %s, error %s", VALUES_PATH.c_str(), strerror(errno));
             abort();
         }
@@ -75,8 +68,8 @@ namespace polar_race {
                     WrittenIndex += INTERNAL_BUFFER_LENGTH;
                 }
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
-                GlobalIndexStore->persist(index_fd);
-                for (int i = 0; i < HANDLER_THREADS; i++) {
+                global_index_store->persist(index_fd);
+                for(int i = 0; i < HANDLER_THREADS; i++){
                     cout << "Handler " << i << endl;
                     PrintTiming(handtps[i]);
                 }
@@ -89,19 +82,16 @@ namespace polar_race {
             if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / 4096) {
                 internal_buffer_index = 0;
                 flushing = false;
-                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH / 2,
-                             INTERNAL_BUFFER_LENGTH, internal_buffer_index);
+                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH/2, INTERNAL_BUFFER_LENGTH, internal_buffer_index);
                 write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
                       INTERNAL_BUFFER_LENGTH / 2);
             } else {
                 flushing = false;
-                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", 0lu, INTERNAL_BUFFER_LENGTH / 2,
-                             internal_buffer_index);
+                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", 0lu, INTERNAL_BUFFER_LENGTH/2, internal_buffer_index);
                 write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
             }
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
             qLogInfofmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
-
 }

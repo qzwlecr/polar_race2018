@@ -1,38 +1,45 @@
 #include "task.h"
-#include "format/log.h"
-#include "index/index.h"
-#include "flusher/flusher.h"
-#include "consts/consts.h"
-
-#include <fcntl.h>
 #include <unistd.h>
+#include "../format/log.h"
+#include "../index/index.h"
+#include <fcntl.h>
 #include <iostream>
 extern "C"{
 #include <malloc.h>
 }
 
+#if defined(__GNUC__)
+#define likely(x) (__builtin_expect((x), 1))
+#define unlikely(x) (__builtin_expect((x), 0))
+#else
+#define likely(x) (x)
+#define unlikely(x) (x)
+#endif
+
+#define LDOMAIN(x) ((x) + 1)
+
+
 namespace polar_race {
 
-#define STRERR (strerror(errno))
-#define LDOMAIN(x) ((x) + 1)
-    
+    using namespace std;
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
 
     Accumulator NextIndex(0);
 
+#define STRERR (strerror(errno))
 
-    void HeartBeater(std::string sendaddr, bool *running) {
+    void HeartBeater(string sendaddr, bool *running) {
         qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
         MailBox hbmb;
-        if (UNLIKELY(hbmb.open() == -1)) {
+        if (unlikely(hbmb.open() == -1)) {
             qLogFailfmt("HeartBeat MailBox open failed: %s", strerror(errno));
             abort();
         }
         struct sockaddr_un un_sendaddr = mksockaddr_un(sendaddr);
         while (*running) {
-            if (UNLIKELY(hbmb.sendOne(reinterpret_cast<const char *>(&HB_MAGIC),
+            if (unlikely(hbmb.sendOne(reinterpret_cast<const char *>(&HB_MAGIC),
                                       sizeof(HB_MAGIC), &un_sendaddr) == -1)) {
                 qLogWarnfmt("HeartBeat Send GG?? is receiver GG?? %s", strerror(errno));
                 /* abort(); */
@@ -43,22 +50,22 @@ namespace polar_race {
         hbmb.close();
     }
 
-    void HeartBeatChecker(std::string recvaddr) {
+    void HeartBeatChecker(string recvaddr) {
         // ENSURE
         ExitSign = false;
         qLogSuccfmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
-        if (UNLIKELY(hbcmb.desc == -1)) {
+        if (unlikely(hbcmb.desc == -1)) {
             qLogFailfmt("HeartBeatChecker MailBox open failed: %s", strerror(errno));
             abort();
         }
         struct sockaddr_un hbaddr = {0};
         Multiplexer mp;
-        if (UNLIKELY(mp.open() == -1)) {
+        if (unlikely(mp.open() == -1)) {
             qLogFailfmt("HeartBeatChecker Multiplexer open failed: %s", STRERR);
             abort();
         }
-        if (UNLIKELY(mp.listen(hbcmb) == -1)) {
+        if (unlikely(mp.listen(hbcmb) == -1)) {
             qLogFailfmt("HeartBeatChecker Multiplexer listen HBMailBox failed: %s", STRERR);
             abort();
         }
@@ -66,11 +73,11 @@ namespace polar_race {
         uint32_t hbmagic = 0;
         while (true) {
             int rv = mp.wait(&successer, 1, 3000);
-            if (UNLIKELY(rv == -1)) {
+            if (unlikely(rv == -1)) {
                 qLogFailfmt("HeartBeatChecker Multiplexer Wait Failed: %s", STRERR);
                 continue;
             }
-            if (UNLIKELY(rv == 0)) {
+            if (unlikely(rv == 0)) {
                 qLogFail("HeartBeatChecker: Timed out.");
                 // timed out!
                 ExitSign = true;
@@ -82,7 +89,7 @@ namespace polar_race {
             // not very ok exactly..
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
             qLogDebug("HeartBeatChecker: beat!");
-            if (UNLIKELY(rdv == -1)) {
+            if (unlikely(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
                 ExitSign = true;
                 mp.close();
@@ -93,10 +100,10 @@ namespace polar_race {
     }
 
 #define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
-
-    void RequestProcessor(std::string recvaddr, TimingProfile *tp) {
+    
+    void RequestProcessor(string recvaddr, TimingProfile* tp) {
         MailBox reqmb(recvaddr);
-        if (UNLIKELY(reqmb.desc == -1)) {
+        if (unlikely(reqmb.desc == -1)) {
             qLogFailfmt("RequestProcessor recv MailBox open failed: %s", STRERR);
             abort();
         }
@@ -113,7 +120,7 @@ namespace polar_race {
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                   sizeof(RequestResponse), &cliun);
             tp->uds_rd += GetTimeElapsed(&t);
-            if (UNLIKELY(gv != sizeof(RequestResponse))) {
+            if (unlikely(gv != sizeof(RequestResponse))) {
                 qLogFailfmt("RequestProcessor[%s]: getRequest failed or incomplete: %s(%ld)", LDOMAIN(recvaddr.c_str()), STRERR, gv);
                 continue;
             }
@@ -124,7 +131,7 @@ namespace polar_race {
                 qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr->key, 2).c_str());
                 // look up in global index store
                 StartTimer(&t);
-                if (!GlobalIndexStore->get(key, file_offset)) {
+                if (!global_index_store->get(key, file_offset)) {
                     tp->index_get += GetTimeElapsed(&t);
                     // not found
                     qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
@@ -138,8 +145,7 @@ namespace polar_race {
                     }
                 } else {
                     tp->index_get += GetTimeElapsed(&t);
-                    qLogInfofmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()),
-                                file_offset, WrittenIndex);
+                    qLogInfofmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()), file_offset, WrittenIndex);
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
@@ -231,22 +237,21 @@ namespace polar_race {
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx
                 StartTimer(&t);
-                GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
+                global_index_store->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
+                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
                        rr->value, VAL_SIZE);
                 // set CanCommit
                 *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) = true;
-                qLogDebugfmt("RequestProcessor[%s]: CommitCompletionQueue state SET (now %d).",
-                             LDOMAIN(recvaddr.c_str()),
-                             *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
+                qLogDebugfmt("RequestProcessor[%s]: CommitCompletionQueue state SET (now %d).", LDOMAIN(recvaddr.c_str()),
+                        *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
                 // flush OK.
                 // wait it gets flush'd
                 StartTimer(&t);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
+                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 tp->spin_commit += GetTimeElapsed(&t);
                 // generate return information.
                 qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));

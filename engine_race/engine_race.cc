@@ -4,16 +4,16 @@
 #endif
 #define _POSIX_C_SOURCE 201012
 #include "engine_race.h"
+#include <unistd.h>
 #include "consts/consts.h"
 #include "task/task.h"
 #include "format/log.h"
+#include <thread>
 #include "flusher/flusher.h"
 #include "index/index.h"
 #include <cstdio>
-#include <cstdlib>
+#include <stdlib.h>
 #include <malloc.h>
-#include <unistd.h>
-#include <thread>
 
 
 extern "C"{
@@ -25,6 +25,8 @@ extern "C"{
 #include <sys/ipc.h>
 #include <sys/sem.h>
 }
+
+using namespace std;
 
 #define FAILED_TEXT "[" Q_FMT_APPLY(Q_COLOR_RED) "FAIL" Q_FMT_APPLY(Q_COLOR_RESET) "] (**SIGNAL**)"
 
@@ -53,20 +55,21 @@ namespace polar_race {
     std::string VALUES_PATH;
     std::string INDECIES_PATH;
 
-    std::string recvaddres[HANDLER_THREADS];
+    string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
-    std::atomic_bool reqfds_occupy[UDS_NUM];
+    atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
     bool running = true;
     volatile int lockfd = -1;
 
+    Flusher flusher;
 
-    std::string ItoS(int i) {
+    string ItoS(int i) {
         char tmp[40] = {0};
         sprintf(tmp, "%d", i);
-        return std::string(tmp);
+        return string(tmp);
     }
 
 /*
@@ -129,12 +132,12 @@ namespace polar_race {
         }
         qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
-            recvaddres[i] = std::string(REQ_ADDR_PREFIX) + ItoS(i);
+            recvaddres[i] = string(REQ_ADDR_PREFIX) + ItoS(i);
             rsaddr[i] = mksockaddr_un(recvaddres[i]);
         }
         qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
         for (int i = 0; i < UDS_NUM; i++) {
-            std::string sndaddr = std::string(RESP_ADDR_PREFIX) + ItoS(i);
+            string sndaddr = string(RESP_ADDR_PREFIX) + ItoS(i);
             requestfds[i] = MailBox(sndaddr);
             if (requestfds[i].desc == -1) {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
@@ -142,12 +145,13 @@ namespace polar_race {
             }
             reqfds_occupy[i] = false;
         }
+        InternalBuffer = (char *) memalign(4096, INTERNAL_BUFFER_LENGTH);
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent
             qLogSucc("Startup: FORK completed.");
             qLogSucc("Startup: HeartBeat thread.");
-            std::thread hbthread(HeartBeater, HB_ADDR, &running);
+            thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
             // qLogInfo("Startup: wait ReqHandler startup complete.");
             struct sembuf sem_buf{
@@ -193,25 +197,24 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
-            auto flusher = new Flusher();
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
+                thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
                 handthrd.detach();
             }
             qLogSucc("RequestHandler: starting Disk Operation thread..");
-            flusher->flush_begin();
+            flusher.flush_begin();
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
-            GlobalIndexStore = new IndexStore();
+            global_index_store = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
             if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
                 qLogInfo("Startup: Unpersisting..");
                 int fd = open(INDECIES_PATH.c_str(), 0);
-                GlobalIndexStore->unpersist(fd);
+                global_index_store->unpersist(fd);
                 close(fd);
             }
-            std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
+            thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
             struct sembuf sem_buf{
                     .sem_num = 0,
@@ -310,7 +313,7 @@ namespace polar_race {
         }
         qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
                      KVArrayDump(rr.value, 8).c_str());
-        *value = std::string(rr.value, VAL_SIZE);
+        *value = string(rr.value, VAL_SIZE);
         return kSucc;
     }
 
