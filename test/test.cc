@@ -11,8 +11,8 @@
 #include <algorithm>
 #include <set>
 
-static const char kEnginePath[] = "/tmp/test_engine";
-static const char kDumpPath[] = "/tmp/test_dump";
+static const char kEnginePath[] = "./test_engine";
+static const char kDumpPath[] = "./test_dump";
 
 using namespace polar_race;
 
@@ -228,7 +228,7 @@ void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsi
 //}
 
 int main() {
-    auto numThreads = std::thread::hardware_concurrency();
+    auto numThreads = 6;
     std::cout << numThreads << std::endl;
 
     Engine *engine = NULL;
@@ -240,7 +240,7 @@ int main() {
     // Write
     auto writeStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numWrite = 100;
+    unsigned numWrite = 10000;
     std::vector<std::thread> writers;
     for (int i = 0; i < numThreads; ++i) {
         writers.emplace_back(std::thread(write, engine, std::ref(keys), numWrite));
@@ -265,7 +265,7 @@ int main() {
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numRead = 10;
+    unsigned numRead = 10000;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
         rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));
