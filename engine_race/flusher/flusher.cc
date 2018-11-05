@@ -91,7 +91,7 @@ namespace polar_race {
                 write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
             }
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
-            qLogSuccfmt("Flusher: written index = %lu", WrittenIndex);
+            qLogInfofmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
 }
