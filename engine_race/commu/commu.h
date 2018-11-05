@@ -24,9 +24,9 @@ namespace polar_race {
         const uint8_t TYPE_EEXIST = -1;
     };
     struct RequestResponse {
+        char value[VAL_SIZE];
         uint8_t type;
         char key[KEY_SIZE];
-        char value[VAL_SIZE];
     };
 
     class MailBox {

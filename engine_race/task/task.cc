@@ -4,6 +4,9 @@
 #include "../index/index.h"
 #include <fcntl.h>
 #include <iostream>
+extern "C"{
+#include <malloc.h>
+}
 
 #if defined(__GNUC__)
 #define likely(x) (__builtin_expect((x), 1))
@@ -105,8 +108,8 @@ namespace polar_race {
             abort();
         }
         struct sockaddr_un cliun = {0};
-        RequestResponse rr = {0};
-        int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME);
+        RequestResponse* rr = reinterpret_cast<RequestResponse*>(memalign(4096, sizeof(RequestResponse)));
+        int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME | O_DIRECT);
         if (valuesfd == -1) {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
@@ -114,7 +117,7 @@ namespace polar_race {
         struct timespec t = {0};
         while (true) {
             StartTimer(&t);
-            int gv = reqmb.getOne(reinterpret_cast<char *>(&rr),
+            int gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                   sizeof(rr), &cliun);
                 tp->uds_rd += GetTimeElapsed(&t);
             if (unlikely(gv == -1)) {
@@ -122,19 +125,19 @@ namespace polar_race {
                 return;
             }
             // simply ok..
-            if (rr.type == RequestType::TYPE_RD) {
-                uint64_t key = *reinterpret_cast<uint64_t *>(rr.key);
+            if (rr->type == RequestType::TYPE_RD) {
+                uint64_t key = *reinterpret_cast<uint64_t *>(rr->key);
                 uint64_t file_offset = 0;
-                qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 2).c_str());
+                qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr->key, 2).c_str());
                 // look up in global index store
                 StartTimer(&t);
                 if (!global_index_store->get(key, file_offset)) {
                     tp->index_get += GetTimeElapsed(&t);
                     // not found
                     qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
-                    rr.type = RequestType::TYPE_EEXIST;
+                    rr->type = RequestType::TYPE_EEXIST;
                     StartTimer(&t);
-                    int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                    int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                     tp->uds_wr += GetTimeElapsed(&t);
                     if (sv == -1) {
                         qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
@@ -146,16 +149,16 @@ namespace polar_race {
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
                         // read from internal buffer
-                        memcpy(rr.value, LARRAY_ACCESS(InternalBuffer, file_offset,INTERNAL_BUFFER_LENGTH), VAL_SIZE);
-                        qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 2).c_str());
+                        memcpy(rr->value, LARRAY_ACCESS(InternalBuffer, file_offset,INTERNAL_BUFFER_LENGTH), VAL_SIZE);
+                        qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr->value, 2).c_str());
                         // check WrittenIndex again
                         if (file_offset >= WrittenIndex) {
                             // then we should return it
                             qLogDebugfmt("RequestProcessor[%s]: Value found on InternalBuffer",
                                         LDOMAIN(recvaddr.c_str()));
-                            rr.type = RequestType::TYPE_OK;
+                            rr->type = RequestType::TYPE_OK;
                             StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                             tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
@@ -176,9 +179,9 @@ namespace polar_race {
                                 LDOMAIN(recvaddr.c_str()));
                         qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
                                     LDOMAIN(recvaddr.c_str()));
-                        rr.type = RequestType::TYPE_EEXIST;
+                        rr->type = RequestType::TYPE_EEXIST;
                         StartTimer(&t);
-                        int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                        int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                         tp->uds_wr += GetTimeElapsed(&t);
                         if (sv == -1) {
                             qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
@@ -188,7 +191,7 @@ namespace polar_race {
                     } else {
                         // read things off it
                         StartTimer(&t);
-                        ssize_t rdv = read(valuesfd, rr.value, VAL_SIZE);
+                        ssize_t rdv = read(valuesfd, rr->value, VAL_SIZE);
                         tp->read_disk += GetTimeElapsed(&t);
                         if (rdv != VAL_SIZE) {
                             qLogWarnfmt(
@@ -199,9 +202,9 @@ namespace polar_race {
                                     LDOMAIN(recvaddr.c_str()));
                             qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
                                         LDOMAIN(recvaddr.c_str()));
-                            rr.type = RequestType::TYPE_EEXIST;
+                            rr->type = RequestType::TYPE_EEXIST;
                             StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                             tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
@@ -212,10 +215,10 @@ namespace polar_race {
                             // read OK.
                             // release the spyce!
                             qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
-                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 2).c_str());
-                            rr.type = RequestType::TYPE_OK;
+                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr->value, 2).c_str());
+                            rr->type = RequestType::TYPE_OK;
                             StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                             tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
@@ -229,18 +232,18 @@ namespace polar_race {
             } else {
                 qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
-                        *reinterpret_cast<uint16_t*>(rr.key), *reinterpret_cast<uint16_t*>(rr.value));
+                        *reinterpret_cast<uint16_t*>(rr->key), *reinterpret_cast<uint16_t*>(rr->value));
                 // get New Index
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx
                 StartTimer(&t);
-                global_index_store->put(*reinterpret_cast<uint64_t *>(rr.key), file_offset);
+                global_index_store->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
-                       rr.value, VAL_SIZE);
+                       rr->value, VAL_SIZE);
                 // set CanCommit
                 *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) = true;
                 qLogDebugfmt("RequestProcessor[%s]: CommitCompletionQueue state SET (now %d).", LDOMAIN(recvaddr.c_str()),
@@ -252,9 +255,9 @@ namespace polar_race {
                 tp->spin_commit += GetTimeElapsed(&t);
                 // generate return information.
                 qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
-                rr.type = RequestType::TYPE_OK;
+                rr->type = RequestType::TYPE_OK;
                 StartTimer(&t);
-                int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                 tp->uds_wr += GetTimeElapsed(&t);
                 if (sv == -1) {
                     qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
