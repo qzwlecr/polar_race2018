@@ -4,6 +4,7 @@
 
 #include <flusher/flusher.h>
 #include <index/index.h>
+#include "../timer/timer.h"
 
 namespace polar_race {
     using namespace std;
@@ -68,6 +69,10 @@ namespace polar_race {
                 }
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 global_index_store->persist(index_fd);
+                for(int i = 0; i < HANDLER_THREADS; i++){
+                    cout << "Handler " << i << endl;
+                    PrintTiming(handtps[i]);
+                }
                 flock(lockfd, LOCK_UN);
                 qLogSucc("Flusher unlocked filelock");
                 close(index_fd);

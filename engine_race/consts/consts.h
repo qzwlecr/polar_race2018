@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include "../timer/timer.h"
 
 namespace polar_race {
     const std::size_t KEY_SIZE = 8;
@@ -20,6 +21,7 @@ namespace polar_race {
     const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;
+    extern TimingProfile handtps[HANDLER_THREADS];
 };
 
 #endif

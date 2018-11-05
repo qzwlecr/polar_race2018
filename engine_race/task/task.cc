@@ -98,7 +98,7 @@ namespace polar_race {
 
 #define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
     
-    void RequestProcessor(string recvaddr) {
+    void RequestProcessor(string recvaddr, TimingProfile* tp) {
         MailBox reqmb(recvaddr);
         if (unlikely(reqmb.desc == -1)) {
             qLogFailfmt("RequestProcessor recv MailBox open failed: %s", STRERR);
@@ -111,9 +111,12 @@ namespace polar_race {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
         }
+        struct timespec t = {0};
         while (true) {
+            StartTimer(&t);
             int gv = reqmb.getOne(reinterpret_cast<char *>(&rr),
                                   sizeof(rr), &cliun);
+                tp->uds_rd += GetTimeElapsed(&t);
             if (unlikely(gv == -1)) {
                 qLogFailfmt("RequestProcessor[%s]: getRequest failed: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                 return;
@@ -124,16 +127,21 @@ namespace polar_race {
                 uint64_t file_offset = 0;
                 qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.key, 2).c_str());
                 // look up in global index store
+                StartTimer(&t);
                 if (!global_index_store->get(key, file_offset)) {
+                    tp->index_get += GetTimeElapsed(&t);
                     // not found
                     qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr.type = RequestType::TYPE_EEXIST;
+                    StartTimer(&t);
                     int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                    tp->uds_wr += GetTimeElapsed(&t);
                     if (sv == -1) {
                         qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
                 } else {
+                    tp->index_get += GetTimeElapsed(&t);
                     qLogInfofmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()), file_offset, WrittenIndex);
                     // check WrittenIndex against expectedIndex
                     if (file_offset >= WrittenIndex) {
@@ -146,7 +154,9 @@ namespace polar_race {
                             qLogDebugfmt("RequestProcessor[%s]: Value found on InternalBuffer",
                                         LDOMAIN(recvaddr.c_str()));
                             rr.type = RequestType::TYPE_OK;
+                            StartTimer(&t);
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                             STRERR);
@@ -167,7 +177,9 @@ namespace polar_race {
                         qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
                                     LDOMAIN(recvaddr.c_str()));
                         rr.type = RequestType::TYPE_EEXIST;
+                        StartTimer(&t);
                         int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                        tp->uds_wr += GetTimeElapsed(&t);
                         if (sv == -1) {
                             qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                         STRERR);
@@ -175,7 +187,9 @@ namespace polar_race {
                         }
                     } else {
                         // read things off it
+                        StartTimer(&t);
                         ssize_t rdv = read(valuesfd, rr.value, VAL_SIZE);
+                        tp->read_disk += GetTimeElapsed(&t);
                         if (rdv != VAL_SIZE) {
                             qLogWarnfmt(
                                     "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
@@ -186,7 +200,9 @@ namespace polar_race {
                             qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
                                         LDOMAIN(recvaddr.c_str()));
                             rr.type = RequestType::TYPE_EEXIST;
+                            StartTimer(&t);
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                             STRERR);
@@ -198,7 +214,9 @@ namespace polar_race {
                             qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
                             qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rr.value, 2).c_str());
                             rr.type = RequestType::TYPE_OK;
+                            StartTimer(&t);
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                            tp->uds_wr += GetTimeElapsed(&t);
                             if (sv == -1) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                             STRERR);
@@ -215,7 +233,9 @@ namespace polar_race {
                 // get New Index
                 uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
                 // put into GlobIdx
+                StartTimer(&t);
                 global_index_store->put(*reinterpret_cast<uint64_t *>(rr.key), file_offset);
+                tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
                 // flush into CommitQueue
@@ -227,11 +247,15 @@ namespace polar_race {
                         *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
                 // flush OK.
                 // wait it gets flush'd
+                StartTimer(&t);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) == true);
+                tp->spin_commit += GetTimeElapsed(&t);
                 // generate return information.
                 qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
                 rr.type = RequestType::TYPE_OK;
+                StartTimer(&t);
                 int sv = reqmb.sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &cliun);
+                tp->uds_wr += GetTimeElapsed(&t);
                 if (sv == -1) {
                     qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                     abort();

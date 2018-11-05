@@ -1,6 +1,9 @@
 #include "timer.h"
 
-#include <stdint.h>
+#include <cstdint>
+#include <iostream>
+
+using namespace std;
 
 struct timespec begintm;
 
@@ -37,3 +40,12 @@ uint64_t GetTimeElapsed(struct timespec* tx){
 	return (uint64_t)reslt.tv_sec*1000000000lu+ reslt.tv_nsec;
 }
 
+void PrintTiming(const TimingProfile& tp){
+    cout << "Time Spent on:" << endl;
+    cout << "UDS Read: " << tp.uds_rd << endl;
+    cout << "UDS Write: " << tp.uds_wr << endl;
+    cout << "Indexer Put: " << tp.index_put << endl;
+    cout << "Indexer Get: " << tp.index_get << endl;
+    cout << "Waiting Commit: " << tp.spin_commit << endl;
+    cout << "Read Disk: " << tp.read_disk << endl;
+}

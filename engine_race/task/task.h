@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include "../commu/commu.h"
+#include "../timer/timer.h"
 
 namespace polar_race {
 
@@ -21,7 +22,7 @@ namespace polar_race {
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
     const std::string RESP_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/respond/";
 
-    void RequestProcessor(std::string recvaddr);
+    void RequestProcessor(std::string recvaddr, TimingProfile* tmpf);
 
     void HeartBeater(std::string sendaddr, bool *runstate);
 

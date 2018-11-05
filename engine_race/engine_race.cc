@@ -57,6 +57,7 @@ namespace polar_race {
 
     string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
+    TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
     atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
@@ -126,6 +127,9 @@ namespace polar_race {
         }
         qLogInfo("Startup: resetting Global Variables");
         running = true;
+        for(int i = 0; i < HANDLER_THREADS; i++){
+            handtps[i] = {0};
+        }
         qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
             recvaddres[i] = string(REQ_ADDR_PREFIX) + ItoS(i);
@@ -196,7 +200,7 @@ namespace polar_race {
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                thread handthrd(RequestProcessor, recvaddres[i]);
+                thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
                 handthrd.detach();
             }
             qLogSucc("RequestHandler: starting Disk Operation thread..");
