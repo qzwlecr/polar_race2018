@@ -117,12 +117,12 @@ namespace polar_race {
         struct timespec t = {0};
         while (true) {
             StartTimer(&t);
-            int gv = reqmb.getOne(reinterpret_cast<char *>(rr),
-                                  sizeof(rr), &cliun);
-                tp->uds_rd += GetTimeElapsed(&t);
-            if (unlikely(gv == -1)) {
-                qLogFailfmt("RequestProcessor[%s]: getRequest failed: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                return;
+            ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
+                                  sizeof(RequestResponse), &cliun);
+            tp->uds_rd += GetTimeElapsed(&t);
+            if (unlikely(gv != sizeof(RequestResponse))) {
+                qLogFailfmt("RequestProcessor[%s]: getRequest failed or incomplete: %s(%ld)", LDOMAIN(recvaddr.c_str()), STRERR, gv);
+                continue;
             }
             // simply ok..
             if (rr->type == RequestType::TYPE_RD) {
