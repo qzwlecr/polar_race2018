@@ -1,9 +1,9 @@
-#include <consts/consts.h>
-#include <index/index.h>
-#include <format/log.h>
+#include "index/index.h"
+#include "consts/consts.h"
+#include "format/log.h"
 
 namespace polar_race {
-    IndexStore *global_index_store;
+    IndexStore *GlobalIndexStore;
     std::mt19937 eng;
     std::uniform_int_distribution<uint32_t> uid;
 
@@ -32,10 +32,10 @@ namespace polar_race {
 
     }
 
-    IndexStore::IndexStore() : hashmap(HASH_MAP_SIZE) {
+    IndexStore::IndexStore() : hashmap(HASH_MAP_SIZE, LOAD_FACTOR) {
         std::random_device r;
         eng = std::mt19937(r());
-        uid = std::uniform_int_distribution<uint32_t>(0, uint32_t(HASH_MAP_SIZE / 0.8f + 128));
+        uid = std::uniform_int_distribution<uint32_t>(0, uint32_t(HASH_MAP_SIZE / LOAD_FACTOR + 128));
     }
 
     void IndexStore::persist(int fd) {
