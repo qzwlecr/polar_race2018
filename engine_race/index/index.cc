@@ -1,5 +1,6 @@
 #include <consts/consts.h>
 #include <index/index.h>
+#include <format/log.h>
 
 namespace polar_race {
     IndexStore *global_index_store;
@@ -11,7 +12,9 @@ namespace polar_race {
         auto ret = hashmap.findOrConstruct(key, [&](void *raw) {
             new(raw) MutableAtom<uint64_t>(offset);
         });
-        if (UNLIKELY(ret.second)) {
+
+        qLogDebugfmt("IndexStore: put %lu into %lu", offset, key);
+        if (UNLIKELY(!ret.second)) {
             (*(ret.first)).second.data.store(offset);
         }
         return true;
@@ -23,6 +26,7 @@ namespace polar_race {
             return false;
         } else {
             offset = hashmap.slots_[ret].keyValue().second.data.load();
+            qLogDebugfmt("IndexStore: get %lu from %lu", offset, key);
             return true;
         }
 
@@ -35,40 +39,42 @@ namespace polar_race {
     }
 
     void IndexStore::persist(int fd) {
-        uint64_t index = 0;
-        char store[BUFFER_SIZE];
-        uint64_t key, value;
-        for (auto iter = hashmap.cbegin(); iter != hashmap.cend(); iter++) {
-            key = (*iter).first, value = (*iter).second.data.load();
-            if (index == BUFFER_SIZE) {
-                write(fd, store, BUFFER_SIZE);
-                index = 0;
-            }
-            memcpy(store + index, &key, 8);
-            index += 8;
-            memcpy(store + index, &value, 8);
-            index += 8;
-        }
-        if (index != 0) {
-            write(fd, store, index);
-        }
+        write(fd, hashmap.slots_, hashmap.mmapRequested_);
+//        uint64_t index = 0;
+//        char store[BUFFER_SIZE];
+//        uint64_t key, value;
+//        for (auto iter = hashmap.cbegin(); iter != hashmap.cend(); iter++) {
+//            key = (*iter).first, value = (*iter).second.data.load();
+//            if (index == BUFFER_SIZE) {
+//                write(fd, store, BUFFER_SIZE);
+//                index = 0;
+//            }
+//            memcpy(store + index, &key, 8);
+//            index += 8;
+//            memcpy(store + index, &value, 8);
+//            index += 8;
+//        }
+//        if (index != 0) {
+//            write(fd, store, index);
+//        }
         return;
     }
 
     void IndexStore::unpersist(int fd) {
-        char store[BUFFER_SIZE];
-        uint64_t key, value;
-        ssize_t ret = 0;
-        while ((ret = read(fd, store, BUFFER_SIZE)) > 0) {
-            for (auto index = 0; index < ret;) {
-                memcpy(&key, store + index, 8);
-                index += 8;
-                memcpy(&value, store + index, 8);
-                index += 8;
-                this->put(key, value);
-            }
-        }
-        assert(ret > 0);
+//        char store[BUFFER_SIZE];
+//        uint64_t key, value;
+//        ssize_t ret = 0;
+//        while ((ret = read(fd, store, BUFFER_SIZE)) > 0) {
+//            for (auto index = 0; index < ret;) {
+//                memcpy(&key, store + index, 8);
+//                index += 8;
+//                memcpy(&value, store + index, 8);
+//                index += 8;
+//                this->put(key, value);
+//            }
+//        }
+//        assert(ret > 0);
+        read(fd, hashmap.slots_, hashmap.mmapRequested_);
         return;
     }
 };
