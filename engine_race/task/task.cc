@@ -109,7 +109,7 @@ namespace polar_race {
         }
         struct sockaddr_un cliun = {0};
         RequestResponse* rr = reinterpret_cast<RequestResponse*>(memalign(4096, sizeof(RequestResponse)));
-        int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME | O_DIRECT);
+        int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME);
         if (valuesfd == -1) {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
