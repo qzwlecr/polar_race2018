@@ -119,4 +119,8 @@ modules.xml
 test
 test_with_kill
 
+.cquery
+engine_race/.cquery
+
 # End of https://www.gitignore.io/api/c++,jetbrains
+

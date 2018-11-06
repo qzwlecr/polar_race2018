@@ -8,8 +8,5 @@
 -Woverloaded-virtual
 -Wnon-virtual-dtor
 -Wno-missing-field-initializers
-
--I./../
--I./
-
--pthread
+-I.
+-I..
