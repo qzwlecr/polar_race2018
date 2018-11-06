@@ -22,6 +22,10 @@ namespace polar_race {
             qLogFailfmt("Flusher: allocating memory error %s", strerror(errno));
             abort();
         }
+        memset(CommitQueue, 0, COMMIT_QUEUE_LENGTH * VAL_SIZE);
+        memset((void *)CommitCompletionQueue, 0, COMMIT_QUEUE_LENGTH);
+        memset(InternalBuffer, 0, INTERNAL_BUFFER_LENGTH);
+
     }
 
     void Flusher::flush_begin() {
@@ -78,6 +82,9 @@ namespace polar_race {
                     write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH);
                     WrittenIndex += INTERNAL_BUFFER_LENGTH;
                 }
+                free(CommitQueue);
+                free((void*)CommitCompletionQueue);
+                free(InternalBuffer);
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 GlobalIndexStore->persist(index_fd);
                 for (int i = 0; i < HANDLER_THREADS; i++) {
@@ -86,9 +93,6 @@ namespace polar_race {
                 }
                 flock(lockfd, LOCK_UN);
                 qLogSucc("Flusher unlocked filelock");
-                free(CommitQueue);
-                free((void*)CommitCompletionQueue);
-                free(InternalBuffer);
                 close(index_fd);
                 close(fd);
                 exit(0);
