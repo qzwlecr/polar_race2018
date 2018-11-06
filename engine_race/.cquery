@@ -9,7 +9,7 @@
 -Wnon-virtual-dtor
 -Wno-missing-field-initializers
 
--I..
--I.
+-I./../
+-I./
 
 -pthread

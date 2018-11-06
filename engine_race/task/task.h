@@ -24,6 +24,7 @@ namespace polar_race {
 
     void HeartBeatChecker(std::string recvaddr);
 
+    void SelfCloser(int timeout, bool* running);
 };
 
 #endif

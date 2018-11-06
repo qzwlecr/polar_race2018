@@ -62,6 +62,7 @@ namespace polar_race {
     Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
+    std::thread* selfclsr = nullptr;
 
 
     std::string ItoS(int i) {
@@ -127,6 +128,11 @@ namespace polar_race {
         running = true;
         for(int i = 0; i < HANDLER_THREADS; i++){
             handtps[i] = {0};
+        }
+        if(SELFCLOSER_ENABLED){
+            qLogSuccfmt("Startup: Starting SelfCloser, sanity time %d", SANITY_EXEC_TIME);
+            selfclsr = new std::thread(SelfCloser, SANITY_EXEC_TIME, &running);
+            qLogInfo("Startup: SelfCloser started.");
         }
         qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
         for (int i = 0; i < HANDLER_THREADS; i++) {
@@ -240,6 +246,8 @@ namespace polar_race {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
         }
+        qLogSucc("Engine:: Waiting SelfCloser exit..");
+        selfclsr->join();
     }
 
 // 3. Write a key-value pair into engine

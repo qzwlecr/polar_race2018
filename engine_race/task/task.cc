@@ -1,13 +1,13 @@
 #include "task.h"
-#include "format/log.h"
-#include "index/index.h"
-#include "flusher/flusher.h"
-#include "consts/consts.h"
+#include "../format/log.h"
+#include "../index/index.h"
+#include "../flusher/flusher.h"
+#include "../consts/consts.h"
 
-#include <fcntl.h>
-#include <unistd.h>
 #include <iostream>
 extern "C"{
+#include <fcntl.h>
+#include <unistd.h>
 #include <malloc.h>
 }
 
@@ -22,6 +22,19 @@ namespace polar_race {
 
     Accumulator NextIndex(0);
 
+    void SelfCloser(int timeout, bool* running){
+        int timed = 0;
+        while(*running){
+            sleep(1);
+            timed += 1;
+            if(timed >= timeout){
+                qLogFail("SelfCloser: Sanity execution time exceeded.");
+                qLogFail("SelfCloser: Forcibly termination..");
+                exit(127);
+            }
+        }
+        qLogSucc("SelfCloser: Exiting Gracefully..");
+    }
 
     void HeartBeater(std::string sendaddr, bool *running) {
         qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
