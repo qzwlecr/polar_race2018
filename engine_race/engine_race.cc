@@ -246,8 +246,10 @@ namespace polar_race {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
         }
-        qLogSucc("Engine:: Waiting SelfCloser exit..");
-        selfclsr->join();
+        if(SELFCLOSER_ENABLED){
+            qLogSucc("Engine:: Waiting SelfCloser exit..");
+            selfclsr->join();
+        }
     }
 
 // 3. Write a key-value pair into engine
