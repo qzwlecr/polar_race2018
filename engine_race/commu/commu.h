@@ -29,6 +29,18 @@ namespace polar_race {
         char key[KEY_SIZE];
     };
 
+    namespace RequestTypeRW {
+        const uint8_t TYPERW_PUT = 0;
+        const uint8_t TYPERW_GET = 1;
+        const uint8_t TYPERW_OK = 0;
+        const uint8_t TYPERW_EEXIST = -1;
+    };
+    struct RequestResponseRW {
+        uint8_t type;
+        char key[KEY_SIZE];
+        uint64_t foffset;
+    };
+
     class MailBox {
     public:
         MailBox();

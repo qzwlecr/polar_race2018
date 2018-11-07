@@ -18,12 +18,19 @@ namespace polar_race {
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
     const std::string RESP_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/respond/";
 
+    // MODE_MPROC_SEQ_WR
     void RequestProcessor(std::string recvaddr, TimingProfile* tmpf);
 
     void HeartBeater(std::string sendaddr, bool *runstate);
 
     void HeartBeatChecker(std::string recvaddr);
 
+    // MODE_MPROC_RAND_WR
+    void RequestProcessor_rw(std::string recvaddr, TimingProfile* tmpf);
+    void HeartBeater_rw(std::string sendaddr, bool* runstate);
+    void HeartBeatChecker_rw(std::string recvaddr);
+
+    // Universal Tools
     void SelfCloser(int timeout, bool* running);
 };
 

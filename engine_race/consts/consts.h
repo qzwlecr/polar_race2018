@@ -3,9 +3,13 @@
 
 #include <cstdint>
 #include <string>
-#include "timer/timer.h"
+#include "../timer/timer.h"
 
 namespace polar_race {
+    enum ExecutionMode {
+        MODE_MPROC_SEQ_WR = 0,
+        MODE_MPROC_RAND_WR
+    };
     const std::size_t KEY_SIZE = 8;
     const std::size_t VAL_SIZE = 4096;
     const int CONCURRENT_QUERY = 64;
@@ -24,6 +28,7 @@ namespace polar_race {
     const bool SELFCLOSER_ENABLED = false;
     const int SANITY_EXEC_TIME = 600;
     extern TimingProfile handtps[HANDLER_THREADS];
+    const int EXEC_MODE = MODE_MPROC_RAND_WR;
 };
 
 #if defined(__GNUC__)
