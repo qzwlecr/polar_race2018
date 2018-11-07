@@ -34,6 +34,12 @@ namespace polar_race {
 
     };
 
+    RetCode OpenRW(const std::string &name, Engine **eptr);
+    RetCode WriteRW(const PolarString& key, const PolarString& value);
+    RetCode ReadRW(const PolarString& key, std::string *value);
+    void DtorRW(EngineRace& engine);
+    RetCode RangeRW(const PolarString& lower, const PolarString& upper, Visitor &visitor);
+
 }  // namespace polar_race
 
 #endif  // ENGINE_RACE_ENGINE_RACE_H_
