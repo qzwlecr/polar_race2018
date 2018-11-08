@@ -290,9 +290,7 @@ namespace polar_race {
             Atom<IndexType> headAndState_;
 
             IndexType next_;
-
-            typename std::aligned_storage<sizeof(value_type), alignof(value_type)>::type
-                    raw_;
+            value_type raw_;
 
             ~Slot() {
                 auto s = state();

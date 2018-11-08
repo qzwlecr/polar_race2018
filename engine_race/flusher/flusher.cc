@@ -91,10 +91,10 @@ namespace polar_race {
                     cout << "Handler " << i << endl;
                     PrintTiming(handtps[i]);
                 }
-                flock(lockfd, LOCK_UN);
-                qLogSucc("Flusher unlocked filelock");
                 close(index_fd);
                 close(fd);
+                flock(lockfd, LOCK_UN);
+                qLogSucc("Flusher unlocked filelock");
                 exit(0);
             }
             if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
