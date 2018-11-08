@@ -247,7 +247,9 @@ namespace polar_race {
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
+                StartTimer(&t);
                 while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
+                tp->spin_commit += GetTimeElapsed(&t);
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
                        rr->value, VAL_SIZE);
@@ -258,19 +260,17 @@ namespace polar_race {
                              *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
                 // flush OK.
                 // wait it gets flush'd
-                StartTimer(&t);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
-                tp->spin_commit += GetTimeElapsed(&t);
-                // generate return information.
-                qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
-                rr->type = RequestType::TYPE_OK;
-                StartTimer(&t);
-                int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                tp->uds_wr += GetTimeElapsed(&t);
-                if (sv == -1) {
-                    qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                    abort();
-                }
+                /* while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH)); */
+                /* // generate return information. */
+                /* qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str())); */
+                /* rr->type = RequestType::TYPE_OK; */
+                /* StartTimer(&t); */
+                /* int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun); */
+                /* tp->uds_wr += GetTimeElapsed(&t); */
+                /* if (sv == -1) { */
+                /*     qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR); */
+                /*     abort(); */
+                /* } */
                 qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             }
         }
