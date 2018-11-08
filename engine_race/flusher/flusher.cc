@@ -2,31 +2,15 @@
 // Created by qzwlecr on 10/31/18.
 //
 
-#include <malloc.h>
 #include "flusher/flusher.h"
 #include "index/index.h"
 
 namespace polar_race {
     using namespace std;
-    char *CommitQueue;
-    volatile bool *CommitCompletionQueue;
+    char CommitQueue[COMMIT_QUEUE_LENGTH * VAL_SIZE];
+    volatile bool CommitCompletionQueue[COMMIT_QUEUE_LENGTH];
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
-
-    Flusher::Flusher() {
-        size_t pagesize = (size_t) getpagesize();
-        CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        CommitCompletionQueue = (volatile bool *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
-        InternalBuffer = (char *) memalign(pagesize, INTERNAL_BUFFER_LENGTH);
-        if(CommitQueue == nullptr || CommitCompletionQueue == nullptr || InternalBuffer == nullptr){
-            qLogFailfmt("Flusher: allocating memory error %s", strerror(errno));
-            abort();
-        }
-        memset(CommitQueue, 0, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        memset((void *)CommitCompletionQueue, 0, COMMIT_QUEUE_LENGTH);
-        memset(InternalBuffer, 0, INTERNAL_BUFFER_LENGTH);
-
-    }
 
     void Flusher::flush_begin() {
         thread flush_reader(&Flusher::read, this);
@@ -82,9 +66,6 @@ namespace polar_race {
                     write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH);
                     WrittenIndex += INTERNAL_BUFFER_LENGTH;
                 }
-                free(CommitQueue);
-                free((void*)CommitCompletionQueue);
-                free(InternalBuffer);
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 GlobalIndexStore->persist(index_fd);
                 for (int i = 0; i < HANDLER_THREADS; i++) {
@@ -114,5 +95,4 @@ namespace polar_race {
             qLogInfofmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
-
 }
