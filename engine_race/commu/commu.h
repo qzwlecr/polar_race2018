@@ -28,6 +28,22 @@ namespace polar_race {
         uint8_t type;
         char key[KEY_SIZE];
     };
+    struct ReadRequest {
+        uint8_t type;
+        char key[KEY_SIZE];
+    };
+    struct ReadResponse {
+        uint8_t type;
+        uint64_t foffset;
+    };
+    struct WriteRequest {
+        uint8_t type;
+        char key[KEY_SIZE];
+        char value[VAL_SIZE];
+    };
+    struct WriteResponse {
+        uint8_t type;
+    };
 
     namespace RequestTypeRW {
         const uint8_t TYPERW_PUT = 0;
