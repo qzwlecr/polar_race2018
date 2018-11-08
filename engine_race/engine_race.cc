@@ -292,16 +292,16 @@ namespace polar_race {
             reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
-        /* struct sockaddr_un useless; */
-        /* ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne( */
-        /*         reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless); */
+        struct sockaddr_un useless;
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
         reqfds_occupy[reqIdx % UDS_NUM] = false;
-        /* if (rv == -1) { */
-        /*     return kIOError; */
-        /* } */
-        /* if (rr.type != RequestType::TYPE_OK) { */
-        /*     return kNotFound; */
-        /* } */
+        if (rv == -1) {
+            return kIOError;
+        }
+        if (rr.type != RequestType::TYPE_OK) {
+            return kNotFound;
+        }
         return kSucc;
     }
 
