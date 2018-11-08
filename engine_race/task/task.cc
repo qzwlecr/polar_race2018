@@ -4,6 +4,7 @@
 #include "../flusher/flusher.h"
 #include "../consts/consts.h"
 
+#include <iostream>
 extern "C"{
 #include <fcntl.h>
 #include <unistd.h>
@@ -14,8 +15,7 @@ namespace polar_race {
 
 #define STRERR (strerror(errno))
 #define LDOMAIN(x) ((x) + 1)
-#define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
-
+    
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
@@ -105,6 +105,7 @@ namespace polar_race {
         }
     }
 
+#define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
 
     void RequestProcessor(std::string recvaddr, TimingProfile *tp) {
         MailBox reqmb(recvaddr);

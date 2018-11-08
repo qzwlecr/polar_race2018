@@ -11,7 +11,7 @@
 // #include "zhwkre/log.h"
 
 #ifndef Q_LOG_LOGLEVEL
-#define Q_LOG_LOGLEVEL 30
+#define Q_LOG_LOGLEVEL 40
 #endif
 
 // these are pre-defined loglevels

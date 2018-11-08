@@ -59,6 +59,7 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     std::atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
+    Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
@@ -154,7 +155,6 @@ namespace polar_race {
             }
             reqfds_occupy[i] = false;
         }
-        InternalBuffer = (char *) memalign(4096, INTERNAL_BUFFER_LENGTH);
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent
@@ -206,6 +206,7 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
+            flusher = new Flusher();
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
@@ -213,7 +214,7 @@ namespace polar_race {
                 handthrd.detach();
             }
             qLogSucc("RequestHandler: starting Disk Operation thread..");
-            Flusher flusher;
+            flusher->flush_begin();
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
@@ -223,7 +224,6 @@ namespace polar_race {
                 GlobalIndexStore->unpersist(fd);
                 close(fd);
             }
-            flusher.flush_begin();
             std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
             struct sembuf sem_buf{
@@ -499,6 +499,7 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandlerRW: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
+            flusher = new Flusher();
             qLogSuccfmt("RequestHandlerConfiguratorRW: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHanderRW: Starting Handler thread %d", i);
