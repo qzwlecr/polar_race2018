@@ -74,7 +74,7 @@ namespace polar_race {
     }
 
     class MMapAlloc {
-    private:
+    public:
         size_t computeSize(size_t size) {
             long pagesize = sysconf(_SC_PAGESIZE);
             size_t mmapLength = ((size - 1) & ~(pagesize - 1)) + pagesize;
@@ -83,7 +83,6 @@ namespace polar_race {
             return mmapLength;
         }
 
-    public:
         void *allocate(size_t size) {
             auto len = computeSize(size);
 

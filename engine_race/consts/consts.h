@@ -14,7 +14,7 @@ namespace polar_race {
     const std::size_t VAL_SIZE = 4096;
     const int CONCURRENT_QUERY = 64;
     const int HANDLER_THREADS = 16;
-    const float LOAD_FACTOR = 0.9f;
+    const float LOAD_FACTOR = 0.8f;
     const std::size_t HASH_MAP_SIZE = 64000000;
     const uint64_t COMMIT_QUEUE_LENGTH = 4096;
     const uint64_t INTERNAL_BUFFER_LENGTH = 2048 * 4096;

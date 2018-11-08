@@ -39,7 +39,7 @@ namespace polar_race {
     }
 
     void IndexStore::persist(int fd) {
-        write(fd, hashmap.slots_, hashmap.mmapRequested_);
+        write(fd, hashmap.slots_, hashmap.allocator_.computeSize(hashmap.mmapRequested_));
 //        uint64_t index = 0;
 //        char store[BUFFER_SIZE];
 //        uint64_t key, value;
@@ -74,7 +74,7 @@ namespace polar_race {
 //            }
 //        }
 //        assert(ret > 0);
-        read(fd, hashmap.slots_, hashmap.mmapRequested_);
+        read(fd, hashmap.slots_, hashmap.allocator_.computeSize(hashmap.mmapRequested_));
         return;
     }
 };
