@@ -184,16 +184,74 @@ namespace polar_race {
                         }
                     }
                     // that means we should read it from file
-                    rresp.type = RequestType::TYPE_OK;
-                    rresp.foffset = file_offset;
-                    qLogDebugfmt("RequestProcessor[%s]: on disk.", LDOMAIN(recvaddr.c_str()));
-                    StartTimer(&t);
-                    int sv = reqmb.sendOne(reinterpret_cast<char *>(&rresp), sizeof(ReadResponse), &cliun);
-                    tp->uds_wr += GetTimeElapsed(&t);
-                    if (sv == -1) {
-                        qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
-                                    STRERR);
-                        abort();
+                    // we send things directly back...
+                    /* rresp.type = RequestType::TYPE_OK; */
+                    /* rresp.foffset = file_offset; */
+                    /* qLogDebugfmt("RequestProcessor[%s]: on disk.", LDOMAIN(recvaddr.c_str())); */
+                    /* StartTimer(&t); */
+                    /* int sv = reqmb.sendOne(reinterpret_cast<char *>(&rresp), sizeof(ReadResponse), &cliun); */
+                    /* tp->uds_wr += GetTimeElapsed(&t); */
+                    /* if (sv == -1) { */
+                    /*     qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), */
+                    /*                 STRERR); */
+                    /*     abort(); */
+                    /* } */
+                    int seekv = lseek(valuesfd, file_offset, SEEK_SET);
+                    if (seekv == -1) {
+                        qLogWarnfmt("RequestProcessor[%s]: lseek failed: %s, treated as NOT FOUND.",
+                                    LDOMAIN(recvaddr.c_str()), STRERR);
+                        qLogWarnfmt(
+                                "RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.",
+                                LDOMAIN(recvaddr.c_str()));
+                        qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
+                                    LDOMAIN(recvaddr.c_str()));
+                        rresp.type = RequestType::TYPE_EEXIST;
+                        StartTimer(&t);
+                        int sv = reqmb.sendOne(reinterpret_cast<char *>(&rresp), sizeof(ReadResponse), &cliun);
+                        tp->uds_wr += GetTimeElapsed(&t);
+                        if (sv == -1) {
+                            qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
+                                        STRERR);
+                            abort();
+                        }
+                    } else {
+                        // read things off it
+                        StartTimer(&t);
+                        ssize_t rdv = read(valuesfd, rrespf.value, VAL_SIZE);
+                        tp->read_disk += GetTimeElapsed(&t);
+                        if (rdv != VAL_SIZE) {
+                            qLogWarnfmt(
+                                    "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
+                                    LDOMAIN(recvaddr.c_str()), STRERR, rdv);
+                            qLogWarnfmt(
+                                    "RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.",
+                                    LDOMAIN(recvaddr.c_str()));
+                            qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
+                                        LDOMAIN(recvaddr.c_str()));
+                            rresp.type = RequestType::TYPE_EEXIST;
+                            StartTimer(&t);
+                            int sv = reqmb.sendOne(reinterpret_cast<char *>(&rresp), sizeof(ReadResponse), &cliun);
+                            tp->uds_wr += GetTimeElapsed(&t);
+                            if (sv == -1) {
+                                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
+                                            STRERR);
+                                abort();
+                            }
+                        } else {
+                            // read OK.
+                            // release the spyce!
+                            qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
+                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()), KVArrayDump(rrespf.value, 2).c_str());
+                            rrespf.type = RequestType::TYPE_OK;
+                            StartTimer(&t);
+                            int sv = reqmb.sendOne(reinterpret_cast<char *>(&rrespf), sizeof(ReadResponseFull), &cliun);
+                            tp->uds_wr += GetTimeElapsed(&t);
+                            if (sv == -1) {
+                                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
+                                            STRERR);
+                                abort();
+                            }
+                        }
                     }
                 }
                 qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
