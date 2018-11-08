@@ -9,6 +9,7 @@
 #include "format/log.h"
 #include "flusher/flusher.h"
 #include "index/index.h"
+#include "commu/commu.h"
 #include <cstdio>
 #include <cstdlib>
 #include <thread>

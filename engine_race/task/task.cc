@@ -3,6 +3,7 @@
 #include "../index/index.h"
 #include "../flusher/flusher.h"
 #include "../consts/consts.h"
+#include "../commu/commu.h"
 
 #include <iostream>
 extern "C"{
@@ -30,6 +31,7 @@ namespace polar_race {
             if(timed >= timeout){
                 qLogFail("SelfCloser: Sanity execution time exceeded.");
                 qLogFail("SelfCloser: Forcibly termination..");
+                qLogFailfmt("SelfCloser: Current requestIndex is %lu", (uint64_t)requestId);
                 exit(127);
             }
         }
