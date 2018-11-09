@@ -16,11 +16,13 @@ namespace polar_race {
 #define STRERR (strerror(errno))
 #define LDOMAIN(x) ((x) + 1)
     
+    volatile bool PreExitSign = false;
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
 
     Accumulator NextIndex(0);
+    Accumulator TermCounter(0);
 
     void SelfCloser(int timeout, bool* running){
         int timed = 0;
@@ -86,7 +88,7 @@ namespace polar_race {
             if (UNLIKELY(rv == 0)) {
                 qLogFail("HeartBeatChecker: Timed out.");
                 // timed out!
-                ExitSign = true;
+                PreExitSign = true;
                 // do clean work
                 mp.close();
                 hbcmb.close();
@@ -97,7 +99,7 @@ namespace polar_race {
             qLogDebug("HeartBeatChecker: beat!");
             if (UNLIKELY(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
-                ExitSign = true;
+                PreExitSign = true;
                 mp.close();
                 hbcmb.close();
                 return;
@@ -121,7 +123,36 @@ namespace polar_race {
             abort();
         }
         struct timespec t = {0};
+        Multiplexer mp;
+        if (UNLIKELY(mp.open() == -1)) {
+            qLogFailfmt("HeartBeatChecker Multiplexer open failed: %s", STRERR);
+            abort();
+        }
+        if (UNLIKELY(mp.listen(reqmb) == -1)) {
+            qLogFailfmt("HeartBeatChecker Multiplexer listen HBMailBox failed: %s", STRERR);
+            abort();
+        }
+        MailBox successer;
         while (true) {
+            int rv = mp.wait(&successer, 1, 1000);
+            if (UNLIKELY(rv == -1)) {
+                qLogFailfmt("RequestProcessor[%s]: Multiplexer Wait Failed: %s",
+                       LDOMAIN(recvaddr.c_str()), STRERR);
+                continue;
+            }
+            if (UNLIKELY(rv == 0)) {
+                if(PreExitSign == true){
+                    qLogFailfmt("RequestProcessor[%s]: Exiting..", LDOMAIN(recvaddr.c_str()));
+                    TermCounter.fetch_add(1);
+                    if(TermCounter == HANDLER_THREADS){
+                        qLogSuccfmt("RequestProcessor[%s]: Exiting Gracefully", LDOMAIN(recvaddr.c_str()));
+                        ExitSign = true;
+                    }
+                    return;
+                }
+                qLogDebugfmt("RequestProcessor[%s]: Timed out, but continue..", LDOMAIN(recvaddr.c_str()));
+                continue;
+            }
             StartTimer(&t);
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                   sizeof(RequestResponse), &cliun);
