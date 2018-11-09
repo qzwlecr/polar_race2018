@@ -18,6 +18,7 @@ namespace polar_race {
 
     using Accumulator=typename std::atomic<uint64_t>;
     extern Accumulator requestId;
+    extern Accumulator completeRd;
     namespace RequestType {
         const uint8_t TYPE_RD = 0;
         const uint8_t TYPE_WR = 1;

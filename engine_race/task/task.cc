@@ -32,6 +32,7 @@ namespace polar_race {
                 qLogFail("SelfCloser: Sanity execution time exceeded.");
                 qLogFail("SelfCloser: Forcibly termination..");
                 qLogFailfmt("SelfCloser: Current requestIndex is %lu", (uint64_t)requestId);
+                qLogFailfmt("SelfCloser: Current completedRd is %lu", (uint64_t)completeRd);
                 exit(127);
             }
         }

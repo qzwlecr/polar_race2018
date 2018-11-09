@@ -60,6 +60,7 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     std::atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
+    Accumulator completeRd(0);
     Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
@@ -85,6 +86,7 @@ namespace polar_race {
             qLogSucc("Startup: Engine mode set to MPORC_RAND_WR");
             return OpenRW(name, eptr);
         }
+        completeRd = 0;
         *eptr = NULL;
         EngineRace *engine_race = new EngineRace(name);
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
@@ -390,6 +392,7 @@ namespace polar_race {
             qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
                          KVArrayDump(valarr, 8).c_str());
             *value = std::string(valarr, VAL_SIZE);
+            completeRd.fetch_add(1);
             return kSucc;
         } else {
             reqfds_occupy[accessIdx] = false;
@@ -401,6 +404,7 @@ namespace polar_race {
             qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
                          KVArrayDump(respf->value, 8).c_str());
             *value = std::string(respf->value, VAL_SIZE);
+            completeRd.fetch_add(1);
             return kSucc;
         }
     }
