@@ -121,7 +121,6 @@ test_with_kill
 
 .cquery
 engine_race/.cquery
-test/*
 
 # End of https://www.gitignore.io/api/c++,jetbrains
 

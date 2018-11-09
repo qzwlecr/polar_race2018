@@ -5,18 +5,17 @@
 #ifndef ENGINE_RACE_FLUSHER_H
 #define ENGINE_RACE_FLUSHER_H
 
-#include "../format/log.h"
-#include "../consts/consts.h"
-#include "../task/task.h"
+#include "format/log.h"
+#include "consts/consts.h"
+#include "task/task.h"
 
 #include <cstddef>
-#include <cstdint>
 #include <thread>
+#include <unistd.h>
 #include <cstring>
+#include <fcntl.h>
 
 extern "C" {
-#include <unistd.h>
-#include <fcntl.h>
 #include <sys/file.h>
 }
 

@@ -9,7 +9,6 @@
 #include "format/log.h"
 #include "flusher/flusher.h"
 #include "index/index.h"
-#include "commu/commu.h"
 #include <cstdio>
 #include <cstdlib>
 #include <thread>
@@ -60,14 +59,13 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     std::atomic_bool reqfds_occupy[UDS_NUM];
     Accumulator requestId(0);
-    Accumulator completeRd(0);
     Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
-    int operationfds[UDS_NUM] = {0};
 
     // =========== FOR RW Mode
+    int operationfds[UDS_NUM] = {0};
 
     std::string ItoS(int i) {
         char tmp[40] = {0};
@@ -86,7 +84,6 @@ namespace polar_race {
             qLogSucc("Startup: Engine mode set to MPORC_RAND_WR");
             return OpenRW(name, eptr);
         }
-        completeRd = 0;
         *eptr = NULL;
         EngineRace *engine_race = new EngineRace(name);
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
@@ -123,16 +120,7 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
-        qLogSucc("Startup: opening operation fds");
-        for(int i = 0; i < UDS_NUM; i++){
-            operationfds[i] = open(VALUES_PATH.c_str(), O_NOATIME | O_RDONLY);
-            if(operationfds[i] == -1){
-                qLogFailfmt("Startup: unable to open operfd[%d]: %s",
-                        i, strerror(errno));
-                // without the operation fd, this program simply won't work.
-                abort();
-            }
-        }
+
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
             qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
@@ -266,13 +254,10 @@ namespace polar_race {
             return;
         }
         running = false;
-        qLogSucc("Engine:: Closing UDSs ..");
+        qLogSucc("Engine:: Closing UDSs..");
         for (int i = 0; i < UDS_NUM; i++) {
             if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
-            }
-            if (close(operationfds[i])) {
-                qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno));
             }
         }
         if(SELFCLOSER_ENABLED){
@@ -289,11 +274,10 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return WriteRW(key, value);
         }
-        WriteRequest wr = {0};
-        WriteResponse wresp = {0};
-        wr.type = RequestType::TYPE_WR;
-        memcpy(wr.key, key.data(), KEY_SIZE);
-        memcpy(wr.value, value.data(), VAL_SIZE);
+        RequestResponse rr = {0};
+        memcpy(rr.key, key.data(), KEY_SIZE);
+        memcpy(rr.value, value.data(), VAL_SIZE);
+        rr.type = RequestType::TYPE_WR;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
         bool fk = false;
@@ -301,24 +285,21 @@ namespace polar_race {
             reqIdx = requestId.fetch_add(1);
             fk = false;
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
-        unsigned accessIdx = reqIdx % UDS_NUM;
         // then OK, we do writing work
-        ssize_t sv = requestfds[accessIdx].sendOne(
-                reinterpret_cast<char *>(&wr), sizeof(WriteRequest), &(rsaddr[accessIdx % HANDLER_THREADS]));
+        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
-            reqfds_occupy[accessIdx] = false;
-            qLogFailfmt("Engine::Write cannot send: %s", strerror(errno));
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
-        ssize_t rv = requestfds[accessIdx].getOne(
-                reinterpret_cast<char *>(&wresp), sizeof(WriteResponse), &useless);
-        reqfds_occupy[accessIdx] = false;
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
         if (rv == -1) {
-            qLogFailfmt("Engine::Write cannot get commit message: %s", strerror(errno));
             return kIOError;
         }
-        if (wresp.type != RequestType::TYPE_OK) {
+        if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }
         return kSucc;
@@ -329,12 +310,9 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return ReadRW(key, value);
         }
-        qChar('I');
-        ReadRequest rr = {0};
+        RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
-        ReadResponseAny rrany;
-        memset(&rrany, 0, sizeof(ReadResponseAny));
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
         bool fk = false;
@@ -342,78 +320,29 @@ namespace polar_race {
             reqIdx = requestId.fetch_add(1);
             fk = false;
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
-        /* if(reqIdx % 1000000 == 0){ */
-        /*     qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx); */
-        /* } */
-        qChar('A');
-        unsigned accessIdx = reqIdx % UDS_NUM;
+        qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
-        ssize_t sv = requestfds[accessIdx].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(ReadRequest), &(rsaddr[accessIdx % HANDLER_THREADS]));
-        if (sv != sizeof(ReadRequest)) {
-            qLogWarnfmt("Engine::Read send failed or incomplete: %s(%ld)", strerror(errno), sv);
-            reqfds_occupy[accessIdx] = false;
+        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
+        if (sv == -1) {
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
-        qChar('S');
         struct sockaddr_un useless;
-        ssize_t rv = requestfds[accessIdx].getOne(
-                reinterpret_cast<char *>(&rrany), sizeof(ReadResponseAny), &useless);
-        if (rv != sizeof(ReadResponse) && rv != sizeof(ReadResponseFull)) {
-            qLogWarnfmt("Engine::Read recv failed or incomplete: %s(%ld)", strerror(errno), rv);
-            reqfds_occupy[accessIdx] = false;
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
+        if (rv != sizeof(RequestResponse)) {
+            qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
         }
-        qChar('R');
-        if(rv == sizeof(ReadResponse)){
-            qChar('!');
-            // we still need the occupy flag to prevent mixing of operfd
-            ReadResponse *resp = reinterpret_cast<ReadResponse*>(&rrany);
-            if (resp->type != RequestType::TYPE_OK) {
-                reqfds_occupy[accessIdx] = false;
-                qLogDebugfmt("Engine::Read K %s not found on disk.", KVArrayDump(key.data(), 8).c_str());
-                return kNotFound;
-            }
-            qLogDebugfmt("Engine::Read Complete with foffset %lu", resp->foffset);
-            // we need to read thing off by ourselves.
-            // copy some logic from sequential mode
-            uint64_t rdoffset = resp->foffset;
-            int lv = lseek(operationfds[accessIdx], rdoffset, SEEK_SET);
-            if(lv == -1){
-                qLogFailfmt("Engine: lseek failed to move to %lu: %s", rdoffset,
-                        strerror(errno));
-                reqfds_occupy[accessIdx] = false;
-                return kIOError;
-            }
-            char valarr[VAL_SIZE] = {0};
-            ssize_t wv = read(operationfds[accessIdx], valarr, VAL_SIZE);
-            if(wv != VAL_SIZE){
-                qLogFailfmt("Engine: failed or incomplete read: %s(%ld)",
-                        strerror(errno), wv);
-                reqfds_occupy[accessIdx] = false;
-                return kIOError;
-            }
-            reqfds_occupy[accessIdx] = false;
-            qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
-                         KVArrayDump(valarr, 8).c_str());
-            *value = std::string(valarr, VAL_SIZE);
-            /* completeRd.fetch_add(1); */
-            return kSucc;
-        } else {
-            qChar('D');
-            reqfds_occupy[accessIdx] = false;
-            ReadResponseFull* respf = reinterpret_cast<ReadResponseFull*>(&rrany);
-            if (respf->type != RequestType::TYPE_OK) {
-                qLogDebugfmt("Engine::Read K %s not found on InternalBuffer.", KVArrayDump(key.data(), 8).c_str());
-                return kNotFound;
-            }
-            qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
-                         KVArrayDump(respf->value, 8).c_str());
-            *value = std::string(respf->value, VAL_SIZE);
-            qChar('E');
-            /* completeRd.fetch_add(1); */
-            return kSucc;
+        if (rr.type != RequestType::TYPE_OK) {
+            return kNotFound;
         }
+        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
+                     KVArrayDump(rr.value, 8).c_str());
+        *value = std::string(rr.value, VAL_SIZE);
+        return kSucc;
     }
 
 /*
@@ -716,7 +645,7 @@ namespace polar_race {
     }
     void DtorRW(EngineRace& engine){
         running = false;
-        qLogSucc("EngineRW:: Closing UDSs and operfds..");
+        qLogSucc("Engine:: Closing UDSs and operfds..");
         for (int i = 0; i < UDS_NUM; i++) {
             if (requestfds[i].close()) {
                 qLogWarnfmt("Closing: socket %d close failed: %s", i, strerror(errno));

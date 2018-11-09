@@ -10,8 +10,8 @@
 #include <algorithm>
 #include <set>
 
-static const char kEnginePath[] = "./test_engine";
-static const char kDumpPath[] = "./test_dump";
+static const char kEnginePath[] = "/tmp/test_engine";
+static const char kDumpPath[] = "/tmp/test_dump";
 
 using namespace polar_race;
 
@@ -234,7 +234,7 @@ int main() {
     threadsafe_vector<std::string> keys;
 
     // Write
-    unsigned numWrite = 100, numKills = 4;
+    unsigned numWrite = 10000, numKills = 4;
     double duration = 0;
     for (int nk = 0; nk < numKills; ++nk) {
         RetCode ret = Engine::Open(kEnginePath, &engine);
@@ -274,7 +274,7 @@ int main() {
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numRead = 100;
+    unsigned numRead = 10000;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
         rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));

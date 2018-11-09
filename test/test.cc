@@ -240,7 +240,7 @@ int main() {
     // Write
     auto writeStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numWrite = 100;
+    unsigned numWrite = 10000;
     std::vector<std::thread> writers;
     for (int i = 0; i < numThreads; ++i) {
         writers.emplace_back(std::thread(write, engine, std::ref(keys), numWrite));
@@ -265,7 +265,7 @@ int main() {
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numRead = 100;
+    unsigned numRead = 10000;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
         rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));
