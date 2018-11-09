@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <thread>
+#include <atomic>
+#include <unistd.h>
 #include <cstring>
 
 extern "C" {
@@ -22,14 +24,18 @@ extern "C" {
 
 namespace polar_race {
 
+    const uint8_t COMMIT_COMPLETION_EMPTY = 0;
+    const uint8_t COMMIT_COMPLETION_OCCUPIED = 1;
+    const uint8_t COMMIT_COMPLETION_FULL = 2;
     extern char *CommitQueue;
-    extern volatile bool *CommitCompletionQueue;
+    extern std::atomic<uint8_t> *CommitCompletionQueue;
     extern volatile uint64_t WrittenIndex;
     extern char *InternalBuffer;
 
     class Flusher {
     public:
         Flusher();
+
         void flush_begin();
 
     private:

@@ -9,21 +9,21 @@
 namespace polar_race {
     using namespace std;
     char *CommitQueue;
-    volatile bool *CommitCompletionQueue;
+    std::atomic<uint8_t> *CommitCompletionQueue;
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
 
     Flusher::Flusher() {
         size_t pagesize = (size_t) getpagesize();
         CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        CommitCompletionQueue = (volatile bool *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
+        CommitCompletionQueue = (atomic<uint8_t> *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
         InternalBuffer = (char *) memalign(pagesize, INTERNAL_BUFFER_LENGTH);
         if(CommitQueue == nullptr || CommitCompletionQueue == nullptr || InternalBuffer == nullptr){
             qLogFailfmt("Flusher: allocating memory error %s", strerror(errno));
             abort();
         }
         memset(CommitQueue, 0, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        memset((void *)CommitCompletionQueue, 0, COMMIT_QUEUE_LENGTH);
+        memset(CommitCompletionQueue, 0, COMMIT_QUEUE_LENGTH);
         memset(InternalBuffer, 0, INTERNAL_BUFFER_LENGTH);
 
     }
@@ -41,7 +41,7 @@ namespace polar_race {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
             qLogDebugfmt("Flusher: index = %lu, WrittenIndex = %lu", index, WrittenIndex);
-            while (CommitCompletionQueue[index] == 0) {
+            while (CommitCompletionQueue[index] != COMMIT_COMPLETION_FULL) {
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
                     return nullptr;
@@ -56,7 +56,7 @@ namespace polar_race {
                    CommitQueue + index * VAL_SIZE,
                    VAL_SIZE);
             internal_buffer_index++;
-            CommitCompletionQueue[index] = 0;
+            CommitCompletionQueue[index] = COMMIT_COMPLETION_EMPTY;
             qLogDebugfmt("Reader: %lu", internal_buffer_index);
         }
 
@@ -83,7 +83,7 @@ namespace polar_race {
                     WrittenIndex += INTERNAL_BUFFER_LENGTH;
                 }
                 free(CommitQueue);
-                free((void*)CommitCompletionQueue);
+                free(CommitCompletionQueue);
                 free(InternalBuffer);
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 GlobalIndexStore->persist(index_fd);
