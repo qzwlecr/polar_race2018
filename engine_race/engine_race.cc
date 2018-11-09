@@ -343,6 +343,7 @@ namespace polar_race {
             qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx);
         }
         unsigned accessIdx = reqIdx % UDS_NUM;
+        qLogSuccfmt("Engine::Read hit %u", accessIdx);
         // then OK, we do writing work
         ssize_t sv = requestfds[accessIdx].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(ReadRequest), &(rsaddr[accessIdx % HANDLER_THREADS]));
