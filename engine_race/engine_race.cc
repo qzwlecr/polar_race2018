@@ -329,6 +329,7 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return ReadRW(key, value);
         }
+        qChar('I');
         ReadRequest rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
