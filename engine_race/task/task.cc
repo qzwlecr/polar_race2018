@@ -299,8 +299,10 @@ namespace polar_race {
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
-                uint8_t fake_swap = COMMIT_COMPLETION_EMPTY;
-                while (LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH)->
+                uint8_t fake_swap;
+                do{
+                    fake_swap = COMMIT_COMPLETION_EMPTY;
+                } while (LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH)->
                     compare_exchange_weak(fake_swap, COMMIT_COMPLETION_OCCUPIED));
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
