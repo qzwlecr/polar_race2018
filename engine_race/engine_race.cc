@@ -123,16 +123,16 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
-        /* qLogSucc("Startup: opening operation fds"); */
-        /* for(int i = 0; i < UDS_NUM; i++){ */
-        /*     operationfds[i] = open(VALUES_PATH.c_str(), O_DSYNC | O_RDWR); */
-        /*     if(operationfds[i] == -1){ */
-        /*         qLogFailfmt("Startup: unable to open operfd[%d]: %s", */
-        /*                 i, strerror(errno)); */
-        /*         // without the operation fd, this program simply won't work. */
-        /*         abort(); */
-        /*     } */
-        /* } */
+        qLogSucc("Startup: opening operation fds");
+        for(int i = 0; i < UDS_NUM; i++){
+            operationfds[i] = open(VALUES_PATH.c_str(), O_NOATIME | O_RDONLY);
+            if(operationfds[i] == -1){
+                qLogFailfmt("Startup: unable to open operfd[%d]: %s",
+                        i, strerror(errno));
+                // without the operation fd, this program simply won't work.
+                abort();
+            }
+        }
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
             qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
@@ -271,9 +271,9 @@ namespace polar_race {
             if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
-            /* if (close(operationfds[i])) { */
-            /*     qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno)); */
-            /* } */
+            if (close(operationfds[i])) {
+                qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno));
+            }
         }
         if(SELFCLOSER_ENABLED){
             qLogSucc("Engine:: Waiting SelfCloser exit..");
@@ -342,9 +342,9 @@ namespace polar_race {
             reqIdx = requestId.fetch_add(1);
             fk = false;
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
-        if(reqIdx % 1000000 == 0){
-            qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx);
-        }
+        /* if(reqIdx % 1000000 == 0){ */
+        /*     qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx); */
+        /* } */
         qChar('A');
         unsigned accessIdx = reqIdx % UDS_NUM;
         // then OK, we do writing work
@@ -397,7 +397,7 @@ namespace polar_race {
             qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
                          KVArrayDump(valarr, 8).c_str());
             *value = std::string(valarr, VAL_SIZE);
-            completeRd.fetch_add(1);
+            /* completeRd.fetch_add(1); */
             return kSucc;
         } else {
             qChar('D');
@@ -411,7 +411,7 @@ namespace polar_race {
                          KVArrayDump(respf->value, 8).c_str());
             *value = std::string(respf->value, VAL_SIZE);
             qChar('E');
-            completeRd.fetch_add(1);
+            /* completeRd.fetch_add(1); */
             return kSucc;
         }
     }
