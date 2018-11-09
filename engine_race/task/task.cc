@@ -26,8 +26,8 @@ namespace polar_race {
     void SelfCloser(int timeout, bool* running){
         int timed = 0;
         while(*running){
-            sleep(10);
-            timed += 10;
+            sleep(1);
+            timed += 1;
             if(timed >= timeout){
                 qLogFail("SelfCloser: Sanity execution time exceeded.");
                 qLogFail("SelfCloser: Forcibly termination..");

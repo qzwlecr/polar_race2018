@@ -370,6 +370,7 @@ namespace polar_race {
             // we still need the occupy flag to prevent mixing of operfd
             ReadResponse *resp = reinterpret_cast<ReadResponse*>(&rrany);
             if (resp->type != RequestType::TYPE_OK) {
+                reqfds_occupy[accessIdx] = false;
                 qLogDebugfmt("Engine::Read K %s not found on disk.", KVArrayDump(key.data(), 8).c_str());
                 return kNotFound;
             }
