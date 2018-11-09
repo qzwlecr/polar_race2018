@@ -121,16 +121,16 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
-        qLogSucc("Startup: opening operation fds");
-        for(int i = 0; i < UDS_NUM; i++){
-            operationfds[i] = open(VALUES_PATH.c_str(), O_DSYNC | O_RDWR);
-            if(operationfds[i] == -1){
-                qLogFailfmt("Startup: unable to open operfd[%d]: %s",
-                        i, strerror(errno));
-                // without the operation fd, this program simply won't work.
-                abort();
-            }
-        }
+        /* qLogSucc("Startup: opening operation fds"); */
+        /* for(int i = 0; i < UDS_NUM; i++){ */
+        /*     operationfds[i] = open(VALUES_PATH.c_str(), O_DSYNC | O_RDWR); */
+        /*     if(operationfds[i] == -1){ */
+        /*         qLogFailfmt("Startup: unable to open operfd[%d]: %s", */
+        /*                 i, strerror(errno)); */
+        /*         // without the operation fd, this program simply won't work. */
+        /*         abort(); */
+        /*     } */
+        /* } */
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
             qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
@@ -264,14 +264,14 @@ namespace polar_race {
             return;
         }
         running = false;
-        qLogSucc("Engine:: Closing UDSs and operationfds..");
+        qLogSucc("Engine:: Closing UDSs ..");
         for (int i = 0; i < UDS_NUM; i++) {
             if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
-            if (close(operationfds[i])) {
-                qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno));
-            }
+            /* if (close(operationfds[i])) { */
+            /*     qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno)); */
+            /* } */
         }
         if(SELFCLOSER_ENABLED){
             qLogSucc("Engine:: Waiting SelfCloser exit..");
