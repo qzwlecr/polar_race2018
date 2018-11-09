@@ -344,8 +344,8 @@ namespace polar_race {
         if(reqIdx % 1000000 == 0){
             qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx);
         }
+        qChar('A');
         unsigned accessIdx = reqIdx % UDS_NUM;
-        qLogSuccfmt("Engine::Read hit %u", accessIdx);
         // then OK, we do writing work
         ssize_t sv = requestfds[accessIdx].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(ReadRequest), &(rsaddr[accessIdx % HANDLER_THREADS]));
@@ -354,6 +354,7 @@ namespace polar_race {
             reqfds_occupy[accessIdx] = false;
             return kIOError;
         }
+        qChar('S');
         struct sockaddr_un useless;
         ssize_t rv = requestfds[accessIdx].getOne(
                 reinterpret_cast<char *>(&rrany), sizeof(ReadResponseAny), &useless);
@@ -362,7 +363,9 @@ namespace polar_race {
             reqfds_occupy[accessIdx] = false;
             return kIOError;
         }
+        qChar('R');
         if(rv == sizeof(ReadResponse)){
+            qChar('!');
             // we still need the occupy flag to prevent mixing of operfd
             ReadResponse *resp = reinterpret_cast<ReadResponse*>(&rrany);
             if (resp->type != RequestType::TYPE_OK) {
@@ -395,6 +398,7 @@ namespace polar_race {
             completeRd.fetch_add(1);
             return kSucc;
         } else {
+            qChar('D');
             reqfds_occupy[accessIdx] = false;
             ReadResponseFull* respf = reinterpret_cast<ReadResponseFull*>(&rrany);
             if (respf->type != RequestType::TYPE_OK) {
@@ -404,6 +408,7 @@ namespace polar_race {
             qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
                          KVArrayDump(respf->value, 8).c_str());
             *value = std::string(respf->value, VAL_SIZE);
+            qChar('E');
             completeRd.fetch_add(1);
             return kSucc;
         }
