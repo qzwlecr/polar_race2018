@@ -289,9 +289,9 @@ namespace polar_race {
                              *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
                 // flush OK.
                 // wait it gets flush'd
-                StartTimer(&t);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
-                tp->spin_commit += GetTimeElapsed(&t);
+                /* StartTimer(&t); */
+                /* while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH)); */
+                /* tp->spin_commit += GetTimeElapsed(&t); */
                 // generate return information.
                 qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
                 rr->type = RequestType::TYPE_OK;
