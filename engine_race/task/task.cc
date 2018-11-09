@@ -142,7 +142,7 @@ namespace polar_race {
             }
             if (UNLIKELY(rv == 0)) {
                 if(PreExitSign == true){
-                    qLogFailfmt("RequestProcessor[%s]: Exiting..", LDOMAIN(recvaddr.c_str()));
+                    qLogSuccfmt("RequestProcessor[%s]: Exiting..", LDOMAIN(recvaddr.c_str()));
                     TermCounter.fetch_add(1);
                     if(TermCounter == HANDLER_THREADS){
                         qLogSuccfmt("RequestProcessor[%s]: Exiting Gracefully", LDOMAIN(recvaddr.c_str()));

@@ -135,6 +135,8 @@ namespace polar_race {
         for(int i = 0; i < HANDLER_THREADS; i++){
             handtps[i] = {0};
         }
+        PreExitSign = false;
+        TermCounter = 0;
         if(SELFCLOSER_ENABLED){
             qLogSuccfmt("Startup: Starting SelfCloser, sanity time %d", SANITY_EXEC_TIME);
             selfclsr = new std::thread(SelfCloser, SANITY_EXEC_TIME, &running);
