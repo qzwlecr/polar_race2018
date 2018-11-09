@@ -18,21 +18,10 @@ struct TimingProfile {
     uint64_t read_disk;
 };
 
-#define GET_TIME_ELAPSED
-
-void StartTimer__(struct timespec* t);
-#ifdef GET_TIME_ELAPSED
-#define StartTimer(x) StartTimer__(x)
-#else
-#define StartTimer(x) ;
-#endif
-
-uint64_t GetTimeElapsed__(struct timespec* t);
-#ifdef GET_TIME_ELAPSED
-#define GetTimeElapsed(x) GetTimeElapsed__(x)
-#else
-#define GetTimeElapsed(x) (0)
-#endif
+void StartTimer();
+void StartTimer(struct timespec* t);
+uint64_t GetTimeElapsed();
+uint64_t GetTimeElapsed(struct timespec* t);
 
 void PrintTiming(const TimingProfile& tp);
 

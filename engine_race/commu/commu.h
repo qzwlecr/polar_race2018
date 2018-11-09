@@ -17,16 +17,14 @@ namespace polar_race {
     struct sockaddr_un mksockaddr_un(const char *addr, size_t addrlen);
 
     using Accumulator=typename std::atomic<uint64_t>;
+    extern Accumulator requestId;
+    extern Accumulator completeRd;
     namespace RequestType {
         const uint8_t TYPE_RD = 0;
         const uint8_t TYPE_WR = 1;
         const uint8_t TYPE_OK = 0;
+        const uint8_t TYPE_RAW = 1;
         const uint8_t TYPE_EEXIST = -1;
-    };
-    struct RequestResponse {
-        char value[VAL_SIZE];
-        uint8_t type;
-        char key[KEY_SIZE];
     };
     struct ReadRequest {
         uint8_t type;
@@ -36,6 +34,14 @@ namespace polar_race {
         uint8_t type;
         uint64_t foffset;
     };
+    struct ReadResponseFull {
+        uint8_t type;
+        char value[VAL_SIZE];
+    };
+    union ReadResponseAny {
+        ReadResponse rr;
+        ReadResponseFull rrfull;
+    };
     struct WriteRequest {
         uint8_t type;
         char key[KEY_SIZE];
@@ -43,6 +49,13 @@ namespace polar_race {
     };
     struct WriteResponse {
         uint8_t type;
+    };
+    union RequestResponse {
+        ReadRequest rreq;
+        ReadResponse rresp;
+        ReadResponseFull rrespf;
+        WriteRequest wreq;
+        WriteResponse wresp;
     };
 
     namespace RequestTypeRW {

@@ -11,7 +11,10 @@
 // #include "zhwkre/log.h"
 
 #ifndef Q_LOG_LOGLEVEL
-#define Q_LOG_LOGLEVEL 40
+#define Q_LOG_LOGLEVEL 20
+#endif
+#ifndef Q_LOG_CHAR
+#define Q_LOG_CHAR 0
 #endif
 
 // these are pre-defined loglevels
@@ -30,6 +33,8 @@
 time(&rawtv);timerep = localtime(&rawtv);\
 fprintf(stderr,qLog_TIME_FMT_STR,timerep->tm_mon+1,timerep->tm_mday,\
 timerep->tm_year+1900,timerep->tm_hour,timerep->tm_min,timerep->tm_sec);}while(0)
+
+#define qChar(ch) do{if(Q_LOG_CHAR != 0) {logMu.lock(); fprintf(stderr, "[%c]", (ch)); logMu.unlock();}}while(0)
 
 #define qLog(lvl, tag, color, str) do{if(Q_LOG_LOGLEVEL <= lvl){ logMu.lock();\
 qfmtColorizerF(stderr,"[",tag,"]",color);qLogCurrTime();fprintf(stderr,str);fprintf(stderr,"\n"); logMu.unlock();}}while(0)
