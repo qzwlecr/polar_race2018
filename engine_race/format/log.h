@@ -14,7 +14,7 @@
 #define Q_LOG_LOGLEVEL 20
 #endif
 #ifndef Q_LOG_CHAR
-#define Q_LOG_CHAR 0
+#define Q_LOG_CHAR 1
 #endif
 
 // these are pre-defined loglevels

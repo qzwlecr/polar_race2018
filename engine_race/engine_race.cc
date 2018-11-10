@@ -65,7 +65,7 @@ namespace polar_race {
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
-    int operationfds[UDS_NUM] = {0};
+    int operationfd = 0;
 
     // =========== FOR RW Mode
 
@@ -123,15 +123,12 @@ namespace polar_race {
             WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
-        qLogSucc("Startup: opening operation fds");
-        for(int i = 0; i < UDS_NUM; i++){
-            operationfds[i] = open(VALUES_PATH.c_str(), O_NOATIME | O_RDONLY);
-            if(operationfds[i] == -1){
-                qLogFailfmt("Startup: unable to open operfd[%d]: %s",
-                        i, strerror(errno));
-                // without the operation fd, this program simply won't work.
-                abort();
-            }
+        qLogSucc("Startup: opening operation fd");
+        operationfd = open(VALUES_PATH.c_str(), O_NOATIME | O_RDWR);
+        if(operationfd == -1){
+            qLogFailfmt("Startup: unable to open operfd: %s", strerror(errno));
+            // without the operation fd, this program simply won't work.
+            abort();
         }
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
@@ -273,9 +270,9 @@ namespace polar_race {
             if (requestfds[i].close()) {
                 qLogInfofmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
-            if (close(operationfds[i])) {
-                qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno));
-            }
+        }
+        if (close(operationfd)) {
+            qLogWarnfmt("Closing: opfd close failed: %s",  strerror(errno));
         }
         if(SELFCLOSER_ENABLED){
             qLogSucc("Engine:: Waiting SelfCloser exit..");
@@ -367,12 +364,12 @@ namespace polar_race {
             return kIOError;
         }
         qChar('R');
+        reqfds_occupy[accessIdx] = false;
         if(rv == sizeof(ReadResponse)){
             qChar('!');
             // we still need the occupy flag to prevent mixing of operfd
             ReadResponse *resp = reinterpret_cast<ReadResponse*>(&rrany);
             if (resp->type != RequestType::TYPE_OK) {
-                reqfds_occupy[accessIdx] = false;
                 qLogDebugfmt("Engine::Read K %s not found on disk.", KVArrayDump(key.data(), 8).c_str());
                 return kNotFound;
             }
@@ -380,22 +377,13 @@ namespace polar_race {
             // we need to read thing off by ourselves.
             // copy some logic from sequential mode
             uint64_t rdoffset = resp->foffset;
-            int lv = lseek(operationfds[accessIdx], rdoffset, SEEK_SET);
-            if(lv == -1){
-                qLogFailfmt("Engine: lseek failed to move to %lu: %s", rdoffset,
-                        strerror(errno));
-                reqfds_occupy[accessIdx] = false;
-                return kIOError;
-            }
             char valarr[VAL_SIZE] = {0};
-            ssize_t wv = read(operationfds[accessIdx], valarr, VAL_SIZE);
+            ssize_t wv = pread(operationfd, valarr, VAL_SIZE, rdoffset);
             if(wv != VAL_SIZE){
                 qLogFailfmt("Engine: failed or incomplete read: %s(%ld)",
                         strerror(errno), wv);
-                reqfds_occupy[accessIdx] = false;
                 return kIOError;
             }
-            reqfds_occupy[accessIdx] = false;
             qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(key.data(), 8).c_str(),
                          KVArrayDump(valarr, 8).c_str());
             *value = std::string(valarr, VAL_SIZE);
@@ -403,7 +391,6 @@ namespace polar_race {
             return kSucc;
         } else {
             qChar('D');
-            reqfds_occupy[accessIdx] = false;
             ReadResponseFull* respf = reinterpret_cast<ReadResponseFull*>(&rrany);
             if (respf->type != RequestType::TYPE_OK) {
                 qLogDebugfmt("Engine::Read K %s not found on InternalBuffer.", KVArrayDump(key.data(), 8).c_str());
@@ -476,16 +463,6 @@ namespace polar_race {
             // RW mode don't need WrittenIdx
             /* WrittenIndex = valfstat.st_size; */
             NextIndex = valfstat.st_size;
-        }
-        qLogSucc("StartupRW: opening operation fds");
-        for(int i = 0; i < UDS_NUM; i++){
-            operationfds[i] = open(VALUES_PATH.c_str(), O_DSYNC | O_RDWR);
-            if(operationfds[i] == -1){
-                qLogFailfmt("StartupRW: unable to open operfd[%d]: %s",
-                        i, strerror(errno));
-                // without the operation fd, this program simply won't work.
-                abort();
-            }
         }
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
@@ -643,23 +620,14 @@ namespace polar_race {
             reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kNotFound;
         }
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
         // initiate write process
-        int opidx = reqIdx % UDS_NUM;
-        int lv = lseek(operationfds[opidx], wroffset, SEEK_SET);
-        if(lv == -1){
-            qLogFailfmt("Engine(RW): lseek failed to move to %lu: %s", wroffset,
-                    strerror(errno));
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
-            return kIOError;
-        }
-        ssize_t wv = write(operationfds[opidx], value.data(), VAL_SIZE);
+        ssize_t wv = pwrite(operationfd, value.data(), VAL_SIZE, wroffset);
         if(wv != VAL_SIZE){
             qLogFailfmt("Engine(RW): failed or incomplete write: %s(%ld) <- %d",
-                    strerror(errno), wv, operationfds[opidx]);
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
+                    strerror(errno), wv, operationfd);
             return kIOError;
         }
-        reqfds_occupy[reqIdx % UDS_NUM] = false;
         return kSucc;
     }
     RetCode ReadRW(const PolarString& key, std::string *value){
@@ -694,26 +662,17 @@ namespace polar_race {
             reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kNotFound;
         }
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
         // initiate read process
-        int opidx = reqIdx % UDS_NUM;
         uint64_t rdoffset = rr.foffset;
-        int lv = lseek(operationfds[opidx], rdoffset, SEEK_SET);
-        if(lv == -1){
-            qLogFailfmt("Engine(RW): lseek failed to move to %lu: %s", rdoffset,
-                    strerror(errno));
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
-            return kIOError;
-        }
         char valarr[VAL_SIZE] = {0};
-        ssize_t wv = read(operationfds[opidx], valarr, VAL_SIZE);
+        ssize_t wv = pread(operationfd, valarr, VAL_SIZE, rdoffset);
         if(wv != VAL_SIZE){
             qLogFailfmt("Engine(RW): failed or incomplete read: %s(%ld)",
                     strerror(errno), wv);
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         *value = std::string(valarr, VAL_SIZE);
-        reqfds_occupy[reqIdx % UDS_NUM] = false;
         return kSucc;
     }
     void DtorRW(EngineRace& engine){
@@ -723,9 +682,9 @@ namespace polar_race {
             if (requestfds[i].close()) {
                 qLogWarnfmt("Closing: socket %d close failed: %s", i, strerror(errno));
             }
-            if (close(operationfds[i])) {
-                qLogWarnfmt("Closing: opfd %d close failed: %s", i, strerror(errno));
-            }
+        }
+        if (close(operationfd)) {
+            qLogWarnfmt("Closing: opfd close failed: %s", strerror(errno));
         }
     }
 
