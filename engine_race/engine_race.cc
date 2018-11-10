@@ -159,9 +159,12 @@ namespace polar_race {
         if (fork()) {
             // parent
             qLogSucc("Startup: FORK completed.");
-            qLogSucc("Startup: HeartBeat thread.");
             std::thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
+            qLogSucc("Startup: HeartBeat thread OK.");
+            std::thread bcthread(BusyChecker, reqfds_occupy, OCCU_BUSY, OCCU_NO, &running);
+            bcthread.detach();
+            qLogSucc("Startup: BusyChecker OK.");
             // qLogInfo("Startup: wait ReqHandler startup complete.");
             struct sembuf sem_buf{
                     .sem_num = 0,

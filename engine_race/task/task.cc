@@ -4,6 +4,7 @@
 #include "../consts/consts.h"
 
 #include <iostream>
+
 extern "C"{
 #include <fcntl.h>
 #include <unistd.h>
@@ -98,6 +99,7 @@ namespace polar_race {
                 }
             }
         }
+        qLogSucc("BusyChecker: Exiting Gracefully..");
     }
 
     void HeartBeatChecker(std::string recvaddr) {
@@ -173,8 +175,40 @@ namespace polar_race {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
         }
+        Multiplexer mp;
+        if (UNLIKELY(mp.open() == -1)) {
+            qLogFailfmt("BusyChecker: Multiplexer open failed: %s", STRERR);
+            abort();
+        }
+        if (UNLIKELY(mp.listen(reqmb) == -1)) {
+            qLogFailfmt("BusyChecker: Multiplexer listen HBMailBox failed: %s", STRERR);
+            abort();
+        }
+        MailBox successer;
         uint64_t buffer_index = 0;
         while (true) {
+            int rv = mp.wait(&successer, 1, 1000);
+            if (UNLIKELY(rv == -1)) {
+                qLogWarnfmt("RequestProcessor[%s]: Multiplexer Wait Failed: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                continue;
+            }
+            if (UNLIKELY(rv == 0)) {
+                qLogWarnfmt("RequestProcessor[%s]: Multiplexer timed out.", LDOMAIN(recvaddr.c_str()));
+                if(PreExitSign){
+                    // ------------
+                    // DO YOUR EXIT
+                    // ------------
+                    uint64_t emm = TermCount.fetch_add(1);
+                    if(emm == HANDLER_THREADS - 1){
+                        // ---------
+                        // DO YOUR LAST EXIT
+                        // ---------
+                        ExitSign = true;
+                    }
+                    return;
+                }
+                continue;
+            }
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                       sizeof(RequestResponse), &cliun);
             if (UNLIKELY(gv != sizeof(RequestResponse))) {
