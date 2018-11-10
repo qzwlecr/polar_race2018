@@ -72,7 +72,7 @@ namespace polar_race {
     }
 
     void *Flusher::flush() {
-        int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
+        int fd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_DSYNC | O_CREAT | O_DIRECT, 0666);
         if (fd == -1) {
             qLogFailfmt("Flusher: cannot open values file %s, error %s", VALUES_PATH.c_str(), strerror(errno));
             abort();
@@ -108,8 +108,8 @@ namespace polar_race {
             }
             write(fd, InternalBuffer + (flushing_index - 1)*(INTERNAL_BUFFER_LENGTH / 2),
                   INTERNAL_BUFFER_LENGTH / 2);
-            flushing_index.store(0);
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
+            flushing_index.store(0);
             qLogDebugfmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
