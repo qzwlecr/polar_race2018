@@ -303,7 +303,7 @@ namespace polar_race {
                 do{
                     fake_swap = COMMIT_COMPLETION_EMPTY;
                 } while (LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH)->
-                    compare_exchange_weak(fake_swap, COMMIT_COMPLETION_OCCUPIED));
+                    compare_exchange_weak(fake_swap, COMMIT_COMPLETION_OCCUPIED) == false);
                 // flush into CommitQueue
                 memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
                        rr->value, VAL_SIZE);

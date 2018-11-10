@@ -23,7 +23,9 @@ namespace polar_race {
             abort();
         }
         memset(CommitQueue, 0, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        memset(CommitCompletionQueue, 0, COMMIT_QUEUE_LENGTH);
+        for (uint64_t i = 0; i< COMMIT_QUEUE_LENGTH; ++i){
+            CommitCompletionQueue[i] = 0;
+        }
         memset(InternalBuffer, 0, INTERNAL_BUFFER_LENGTH);
 
     }
@@ -41,7 +43,7 @@ namespace polar_race {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
             qLogDebugfmt("Flusher: index = %lu, WrittenIndex = %lu", index, WrittenIndex);
-            while (CommitCompletionQueue[index] != COMMIT_COMPLETION_FULL) {
+            while (CommitCompletionQueue[index].load() != COMMIT_COMPLETION_FULL) {
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
                     return nullptr;
@@ -56,7 +58,7 @@ namespace polar_race {
                    CommitQueue + index * VAL_SIZE,
                    VAL_SIZE);
             internal_buffer_index++;
-            CommitCompletionQueue[index] = COMMIT_COMPLETION_EMPTY;
+            CommitCompletionQueue[index].store(COMMIT_COMPLETION_EMPTY);
             qLogDebugfmt("Reader: %lu", internal_buffer_index);
         }
 

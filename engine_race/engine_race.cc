@@ -302,7 +302,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
         unsigned accessIdx = reqIdx % UDS_NUM;
         // then OK, we do writing work
         ssize_t sv = requestfds[accessIdx].sendOne(
@@ -343,7 +343,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
         /* if(reqIdx % 1000000 == 0){ */
         /*     qLogSuccfmt("Engine::Read total request number hit %lu", reqIdx); */
         /* } */
