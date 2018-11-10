@@ -28,6 +28,7 @@ namespace polar_race {
 
     Accumulator NextIndex(0);
     Accumulator TermCount(0);
+    Accumulator InitCount(0);
 
     void SelfCloser(int timeout, bool *running) {
         int timed = 0;
@@ -191,6 +192,7 @@ namespace polar_race {
             qLogFailfmt("BusyChecker: Multiplexer listen HBMailBox failed: %s", STRERR);
             abort();
         }
+        InitCount.fetch_add(1);
         MailBox successer;
         uint64_t buffer_index = 0;
         while (true) {

@@ -121,6 +121,7 @@ namespace polar_race {
             NextIndex = valfstat.st_size;
         }
         TermCount = 0;
+        InitCount = 0;
 
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
@@ -229,6 +230,7 @@ namespace polar_race {
             }
             std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
+            while(InitCount != HANDLER_THREADS);
             struct sembuf sem_buf{
                     .sem_num = 0,
                     .sem_op = -1

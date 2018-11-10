@@ -16,6 +16,7 @@ namespace polar_race {
 
     extern Accumulator NextIndex;
     extern Accumulator TermCount;
+    extern Accumulator InitCount;
 
     extern char *InternalBuffer[HANDLER_THREADS];
 
