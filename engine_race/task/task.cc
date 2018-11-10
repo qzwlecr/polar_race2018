@@ -56,6 +56,51 @@ namespace polar_race {
         hbmb.close();
     }
 
+    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running){
+        qLogSuccfmt("BusyChecker: initialize %s", LDOMAIN(HANDLER_READY_ADDR.c_str()));
+        MailBox hbcmb(HANDLER_READY_ADDR);
+        if (UNLIKELY(hbcmb.desc == -1)) {
+            qLogFailfmt("BusyChecker: MailBox open failed: %s", strerror(errno));
+            abort();
+        }
+        struct sockaddr_un hbaddr = {0};
+        Multiplexer mp;
+        if (UNLIKELY(mp.open() == -1)) {
+            qLogFailfmt("BusyChecker: Multiplexer open failed: %s", STRERR);
+            abort();
+        }
+        if (UNLIKELY(mp.listen(hbcmb) == -1)) {
+            qLogFailfmt("BusyChecker: Multiplexer listen HBMailBox failed: %s", STRERR);
+            abort();
+        }
+        MailBox successer;
+        uint8_t okid = 0;
+        while (*running) {
+            int rv = mp.wait(&successer, 1, 1000);
+            if (UNLIKELY(rv == -1)) {
+                qLogWarnfmt("BusyChecker: Multiplexer Wait Failed: %s", STRERR);
+                continue;
+            }
+            if (UNLIKELY(rv == 0)) {
+                continue;
+            }
+            // not very ok exactly..
+            int rdv = hbcmb.getOne(reinterpret_cast<char *>(&okid), sizeof(uint8_t), &hbaddr);
+            qLogDebugfmt("BusyChecker: %hhu ok!", okid);
+            if (UNLIKELY(rdv == -1)) {
+                qLogFailfmt("BusyChecker: unexpected MailBox Get Failure: %s", STRERR);
+                continue;
+            }
+            // set
+            for(int i = 0; i < UDS_CONGEST_AMPLIFIER; i++){
+                uint8_t busy_mark = mode_busy, idle_mark = mode_idle;
+                if(atarray[((uint32_t)okid) + (i * HANDLER_THREADS)].compare_exchange_weak(busy_mark, idle_mark)){
+                    qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t)okid) + (i * HANDLER_THREADS));
+                }
+            }
+        }
+    }
+
     void HeartBeatChecker(std::string recvaddr) {
         // ENSURE
         ExitSign = false;

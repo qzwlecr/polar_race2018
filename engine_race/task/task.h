@@ -5,6 +5,7 @@
 #include <string>
 #include "../commu/commu.h"
 #include "../timer/timer.h"
+#include <atomic>
 
 namespace polar_race {
 
@@ -33,6 +34,7 @@ namespace polar_race {
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
+    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle);
 };
 
 #endif

@@ -57,7 +57,10 @@ namespace polar_race {
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
-    std::atomic_bool reqfds_occupy[UDS_NUM];
+    std::atomic_uint8_t reqfds_occupy[UDS_NUM];
+    const uint8_t OCCU_NO = 0;
+    const uint8_t OCCU_BUSY = 1;
+    const uint8_t OCCU_WORK = 2;
     Accumulator requestId(0);
     Flusher *flusher;
     bool running = true;
@@ -213,8 +216,8 @@ namespace polar_race {
                 std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
                 handthrd.detach();
             }
-            qLogSucc("RequestHandler: starting Disk Operation thread..");
-            flusher->flush_begin();
+            /* qLogSucc("RequestHandler: starting Disk Operation thread.."); */
+            /* flusher->flush_begin(); */
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
@@ -280,23 +283,29 @@ namespace polar_race {
         rr.type = RequestType::TYPE_WR;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        bool fk = false;
+        uint8_t fk = OCCU_NO;
         do {
             reqIdx = requestId.fetch_add(1);
-            fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+            fk = OCCU_NO;
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
+            qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld)", strerror(errno), sv);
             reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        reqfds_occupy[reqIdx % UDS_NUM] = false;
+        if(rr.type != RequestType::TYPE_BUSY){
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+        } else {
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
+        }
         if (rv == -1) {
+            qLogWarnfmt("Engine::Write recv failed or incomplete: %s(%ld)", strerror(errno), sv);
             return kIOError;
         }
         if (rr.type != RequestType::TYPE_OK) {
@@ -315,23 +324,28 @@ namespace polar_race {
         rr.type = RequestType::TYPE_RD;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        bool fk = false;
+        uint8_t fk = OCCU_NO;
         do {
             reqIdx = requestId.fetch_add(1);
-            fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+            fk = OCCU_NO;
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
         qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
+            qLogWarnfmt("Engine::Read send failed or incomplete: %s(%ld)", strerror(errno), sv);
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
             return kIOError;
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        reqfds_occupy[reqIdx % UDS_NUM] = false;
+        if(rr.type != RequestType::TYPE_BUSY){
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+        } else {
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
+        }
         if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;

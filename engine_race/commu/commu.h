@@ -46,7 +46,7 @@ namespace polar_race {
     public:
         MailBox();
 
-        MailBox(std::string &address); // only for recving socket
+        MailBox(const std::string &address); // only for recving socket
         MailBox(int fdesc);
 
         MailBox &operator=(int fd);
