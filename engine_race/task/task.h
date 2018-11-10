@@ -27,7 +27,7 @@ namespace polar_race {
     const std::string HANDLER_READY_ADDR = (std::string() + '\0') + "ralopdb/ready";
 
     // MODE_MPROC_SEQ_WR
-    void RequestProcessor(std::string recvaddr, TimingProfile* tmpf);
+    void RequestProcessor(std::string recvaddr, TimingProfile* tmpf, uint8_t own_id);
 
     void HeartBeater(std::string sendaddr, bool *runstate);
 
@@ -40,7 +40,7 @@ namespace polar_race {
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
-    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle);
+    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running);
 };
 
 #endif

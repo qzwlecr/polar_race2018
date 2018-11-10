@@ -8,6 +8,7 @@
 extern "C"{
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/file.h>
 #include <malloc.h>
 }
 
@@ -16,11 +17,17 @@ namespace polar_race {
 #define STRERR (strerror(errno))
 #define LDOMAIN(x) ((x) + 1)
 
+    volatile bool PreExitSign = false;
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
 
+    char *InternalBuffer[HANDLER_THREADS];
+
+    uint64_t AllocatedOffset[HANDLER_THREADS];
+
     Accumulator NextIndex(0);
+    Accumulator TermCount(0);
 
     void SelfCloser(int timeout, bool *running) {
         int timed = 0;
@@ -104,7 +111,7 @@ namespace polar_race {
 
     void HeartBeatChecker(std::string recvaddr) {
         // ENSURE
-        ExitSign = false;
+        PreExitSign = false;
         qLogSuccfmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (UNLIKELY(hbcmb.desc == -1)) {
@@ -132,7 +139,7 @@ namespace polar_race {
             if (UNLIKELY(rv == 0)) {
                 qLogFail("HeartBeatChecker: Timed out.");
                 // timed out!
-                ExitSign = true;
+                PreExitSign = true;
                 // do clean work
                 mp.close();
                 hbcmb.close();
@@ -143,7 +150,7 @@ namespace polar_race {
             qLogDebug("HeartBeatChecker: beat!");
             if (UNLIKELY(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
-                ExitSign = true;
+                PreExitSign = true;
                 mp.close();
                 hbcmb.close();
                 return;
@@ -193,17 +200,24 @@ namespace polar_race {
                 continue;
             }
             if (UNLIKELY(rv == 0)) {
-                qLogWarnfmt("RequestProcessor[%s]: Multiplexer timed out.", LDOMAIN(recvaddr.c_str()));
+                qLogInfofmt("RequestProcessor[%s]: Multiplexer timed out.", LDOMAIN(recvaddr.c_str()));
                 if(PreExitSign){
-                    // ------------
-                    // DO YOUR EXIT
-                    // ------------
+                    if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
+                        INTERNAL_BUFFER_LENGTH) {
+                        qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                        abort();
+                    }
                     uint64_t emm = TermCount.fetch_add(1);
                     if(emm == HANDLER_THREADS - 1){
-                        // ---------
-                        // DO YOUR LAST EXIT
-                        // ---------
-                        ExitSign = true;
+                        for(int i = 0;i<HANDLER_THREADS;++i)
+                            free(InternalBuffer[i]);
+                        int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0666);
+                        GlobalIndexStore->persist(index_fd);
+                        close(index_fd);
+                        flock(lockfd, LOCK_UN);
+                        qLogSucc("Flusher unlocked filelock");
+                        //ExitSign = true;
+                        exit(0);
                     }
                     return;
                 }
@@ -227,9 +241,10 @@ namespace polar_race {
                     qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr->type = RequestType::TYPE_EEXIST;
                 } else {
-                    uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(file_offset);
-                    uint8_t handler_id = *(handler_id_p + 3);
-                    *handler_id_p = 0;
+                    uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(&file_offset);
+                    uint8_t handler_id = *(handler_id_p + 7);
+                    *(handler_id_p + 7) = 0;
+                    qLogDebugfmt("RequestProcessor[%s]: Get index = %lu", LDOMAIN(recvaddr.c_str()), file_offset);
                     int64_t sub = (int64_t)file_offset - (int64_t)AllocatedOffset[handler_id];
                     if (sub > (int64_t)INTERNAL_BUFFER_LENGTH || sub < 0) {
                         READ_ON_DISK:
@@ -270,19 +285,20 @@ namespace polar_race {
                 qLogDebugfmt("RequestProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                              *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
-                uint64_t file_offset = buffer_index;
-                uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(file_offset);
-                *(handler_id_p + 3) = own_id;
+                uint64_t file_offset = buffer_index + AllocatedOffset[own_id];
+                qLogDebugfmt("RequestProcessor[%s]: Put index = %lu", LDOMAIN(recvaddr.c_str()), file_offset);
+                uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(&file_offset);
+                *(handler_id_p + 7) = own_id;
                 memcpy(InternalBuffer[own_id] + buffer_index, rr->value, VAL_SIZE);
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
-                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
                 buffer_index += VAL_SIZE;
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
                     rr->type = RequestType::TYPE_BUSY;
                 } else {
                     rr->type = RequestType::TYPE_OK;
                 }
+                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             }
 
             ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);

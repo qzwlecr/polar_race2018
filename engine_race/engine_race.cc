@@ -120,6 +120,7 @@ namespace polar_race {
             qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
             NextIndex = valfstat.st_size;
         }
+        TermCount = 0;
 
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
@@ -162,7 +163,7 @@ namespace polar_race {
             std::thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
             qLogSucc("Startup: HeartBeat thread OK.");
-            std::thread bcthread(BusyChecker, reqfds_occupy, OCCU_BUSY, OCCU_NO, &running);
+            std::thread bcthread(BusyChecker, &(reqfds_occupy[0]), OCCU_BUSY, OCCU_NO, &running);
             bcthread.detach();
             qLogSucc("Startup: BusyChecker OK.");
             // qLogInfo("Startup: wait ReqHandler startup complete.");
@@ -212,7 +213,7 @@ namespace polar_race {
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), i);
+                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
                 AllocatedOffset[i] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
                 InternalBuffer[i] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
                 handthrd.detach();
