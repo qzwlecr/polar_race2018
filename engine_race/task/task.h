@@ -15,6 +15,10 @@ namespace polar_race {
 
     extern Accumulator NextIndex;
 
+    extern char *InternalBuffer[HANDLER_THREADS];
+
+    extern uint64_t AllocatedOffset[HANDLER_THREADS];
+
     const std::string HB_ADDR = (std::string() + '\0') + "ralopdb/heartbeat";
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
     const std::string RESP_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/respond/";

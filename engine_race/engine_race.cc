@@ -7,7 +7,6 @@
 #include "consts/consts.h"
 #include "task/task.h"
 #include "format/log.h"
-#include "flusher/flusher.h"
 #include "index/index.h"
 #include <cstdio>
 #include <cstdlib>
@@ -62,7 +61,6 @@ namespace polar_race {
     const uint8_t OCCU_BUSY = 1;
     const uint8_t OCCU_WORK = 2;
     Accumulator requestId(0);
-    Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
@@ -120,7 +118,6 @@ namespace polar_race {
                 abort();
             }
             qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
-            WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
 
@@ -209,15 +206,14 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
-            flusher = new Flusher();
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
                 std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
+                AllocatedOffset[i] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
+                InternalBuffer[i] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
                 handthrd.detach();
             }
-            /* qLogSucc("RequestHandler: starting Disk Operation thread.."); */
-            /* flusher->flush_begin(); */
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
@@ -513,7 +509,6 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandlerRW: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
-            flusher = new Flusher();
             qLogSuccfmt("RequestHandlerConfiguratorRW: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHanderRW: Starting Handler thread %d", i);
@@ -522,7 +517,6 @@ namespace polar_race {
             }
             // For RW, we dont need separate disk flushing thread
             /* qLogSucc("RequestHandlerRW: starting Disk Operation thread.."); */
-            /* flusher->flush_begin(); */
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("RequestHandlerRW: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
             if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
