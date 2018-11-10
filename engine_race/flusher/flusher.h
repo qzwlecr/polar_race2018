@@ -45,7 +45,7 @@ namespace polar_race {
 
         volatile uint64_t internal_buffer_index = 0;
         volatile bool last_flush = false;
-        volatile bool flushing = false;
+        std::atomic<uint64_t> flushing_index;
 
     };
 }

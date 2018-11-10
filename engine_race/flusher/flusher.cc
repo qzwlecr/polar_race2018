@@ -13,12 +13,12 @@ namespace polar_race {
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
 
-    Flusher::Flusher() {
+    Flusher::Flusher() : flushing_index(0) {
         size_t pagesize = (size_t) getpagesize();
         CommitQueue = (char *) memalign(pagesize, COMMIT_QUEUE_LENGTH * VAL_SIZE);
-        CommitCompletionQueue = (atomic<uint8_t> *) memalign(pagesize, COMMIT_QUEUE_LENGTH);
+        CommitCompletionQueue = (atomic<uint8_t> *) memalign(pagesize, COMMIT_QUEUE_LENGTH * sizeof(atomic<uint8_t>));
         InternalBuffer = (char *) memalign(pagesize, INTERNAL_BUFFER_LENGTH);
-        if(CommitQueue == nullptr || CommitCompletionQueue == nullptr || InternalBuffer == nullptr){
+        if (CommitQueue == nullptr || CommitCompletionQueue == nullptr || InternalBuffer == nullptr) {
             qLogFailfmt("Flusher: allocating memory error %s", strerror(errno));
             abort();
         }
@@ -51,9 +51,16 @@ namespace polar_race {
             }
             if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / VAL_SIZE) ||
                 internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
-                flushing = true;
+                uint64_t new_index = internal_buffer_index / (INTERNAL_BUFFER_LENGTH / 2 / VAL_SIZE), expected;
+                do {
+                    expected = 0;
+                }while(flushing_index.compare_exchange_weak(expected, new_index) == false);
+                qLogDebugfmt("Reader: flushing index = %d", flushing_index.load());
+                qLogDebug("Reader: Ready to flush to disk");
+                if(internal_buffer_index == (INTERNAL_BUFFER_LENGTH / VAL_SIZE)){
+                    internal_buffer_index = 0;
+                }
             }
-            while (flushing);
             memcpy(InternalBuffer + internal_buffer_index * VAL_SIZE,
                    CommitQueue + index * VAL_SIZE,
                    VAL_SIZE);
@@ -72,7 +79,7 @@ namespace polar_race {
         }
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
-            while (!flushing && UNLIKELY(!ExitSign));
+            while (flushing_index.load()==0 && UNLIKELY(!ExitSign));
             qLogDebug("Flusher: Ready to flush to disk");
             if (UNLIKELY(ExitSign)) {
                 while (!last_flush);
@@ -99,21 +106,11 @@ namespace polar_race {
                 qLogSucc("Flusher unlocked filelock");
                 exit(0);
             }
-            if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
-                internal_buffer_index = 0;
-                flushing = false;
-                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH / 2,
-                             INTERNAL_BUFFER_LENGTH, internal_buffer_index);
-                write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
-                      INTERNAL_BUFFER_LENGTH / 2);
-            } else {
-                flushing = false;
-                qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", 0lu, INTERNAL_BUFFER_LENGTH / 2,
-                             internal_buffer_index);
-                write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
-            }
+            write(fd, InternalBuffer + (flushing_index - 1)*(INTERNAL_BUFFER_LENGTH / 2),
+                  INTERNAL_BUFFER_LENGTH / 2);
+            flushing_index.store(0);
             WrittenIndex += INTERNAL_BUFFER_LENGTH / 2;
-            qLogInfofmt("Flusher: written index = %lu", WrittenIndex);
+            qLogDebugfmt("Flusher: written index = %lu", WrittenIndex);
         }
     }
 
