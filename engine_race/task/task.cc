@@ -64,7 +64,7 @@ namespace polar_race {
         hbmb.close();
     }
 
-    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running){
+    void BusyChecker(std::atomic<unsigned char>* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running){
         qLogSuccfmt("BusyChecker: initialize %s", LDOMAIN(HANDLER_READY_ADDR.c_str()));
         MailBox hbcmb(HANDLER_READY_ADDR);
         if (UNLIKELY(hbcmb.desc == -1)) {

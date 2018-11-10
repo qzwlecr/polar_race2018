@@ -56,7 +56,7 @@ namespace polar_race {
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
-    std::atomic_uint8_t reqfds_occupy[UDS_NUM];
+    std::atomic<unsigned char> reqfds_occupy[UDS_NUM];
     const uint8_t OCCU_NO = 0;
     const uint8_t OCCU_BUSY = 1;
     const uint8_t OCCU_WORK = 2;
@@ -155,7 +155,7 @@ namespace polar_race {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }
-            reqfds_occupy[i] = false;
+            reqfds_occupy[i] = OCCU_NO;
         }
         qLogInfo("Startup: FORK !");
         if (fork()) {

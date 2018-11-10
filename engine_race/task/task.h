@@ -41,7 +41,7 @@ namespace polar_race {
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
-    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running);
+    void BusyChecker(std::atomic<unsigned char>* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running);
 };
 
 #endif
