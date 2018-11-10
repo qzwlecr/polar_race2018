@@ -21,6 +21,7 @@ namespace polar_race {
         const uint8_t TYPE_RD = 0;
         const uint8_t TYPE_WR = 1;
         const uint8_t TYPE_OK = 0;
+        const uint8_t TYPE_BUSY = 1;
         const uint8_t TYPE_EEXIST = -1;
     };
     struct RequestResponse {
