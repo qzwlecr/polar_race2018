@@ -209,7 +209,7 @@ namespace polar_race {
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
+                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), i);
                 AllocatedOffset[i] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
                 InternalBuffer[i] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
                 handthrd.detach();
@@ -552,7 +552,7 @@ namespace polar_race {
         rr.foffset = wroffset;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        bool fk = false;
+        uint8_t fk = false;
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
@@ -603,7 +603,7 @@ namespace polar_race {
         rr.type = RequestTypeRW::TYPERW_GET;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        bool fk = false;
+        uint8_t fk = false;
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
