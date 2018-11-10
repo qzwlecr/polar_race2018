@@ -292,8 +292,8 @@ namespace polar_race {
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
-            qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld)", strerror(errno), sv);
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
+            qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld) ,using %ld", strerror(errno), sv, reqIdx % UDS_NUM);
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
             return kIOError;
         }
         struct sockaddr_un useless;
