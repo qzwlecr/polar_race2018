@@ -289,7 +289,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = OCCU_NO;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
@@ -327,7 +327,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = OCCU_NO;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
         qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
@@ -555,7 +555,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponseRW), &(rsaddr[reqIdx % HANDLER_THREADS]));
@@ -606,7 +606,7 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponseRW), &(rsaddr[reqIdx % HANDLER_THREADS]));
