@@ -64,7 +64,7 @@ namespace polar_race {
         hbmb.close();
     }
 
-    void BusyChecker(std::atomic<unsigned char>* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running){
+    void BusyChecker(std::atomic<unsigned char> *atarray, uint8_t mode_busy, uint8_t mode_idle, bool *running) {
         qLogSuccfmt("BusyChecker: initialize %s", LDOMAIN(HANDLER_READY_ADDR.c_str()));
         MailBox hbcmb(HANDLER_READY_ADDR);
         if (UNLIKELY(hbcmb.desc == -1)) {
@@ -100,12 +100,13 @@ namespace polar_race {
                 continue;
             }
             // set
-            for(int i = 0; i < UDS_CONGEST_AMPLIFIER; i++){
+            for (int i = 0; i < UDS_CONGEST_AMPLIFIER; i++) {
                 uint8_t busy_mark;
-                do{
+                do {
                     busy_mark = mode_busy;
-                }while(atarray[((uint32_t)okid) + (i * HANDLER_THREADS)].compare_exchange_weak(busy_mark, mode_idle));
-                qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t)okid) + (i * HANDLER_THREADS));
+                } while (atarray[((uint32_t) okid) + (i * HANDLER_THREADS)].compare_exchange_weak(busy_mark,
+                                                                                                  mode_idle));
+                qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t) okid) + (i * HANDLER_THREADS));
             }
         }
         qLogSucc("BusyChecker: Exiting Gracefully..");
@@ -203,15 +204,15 @@ namespace polar_race {
                 continue;
             }
             if (UNLIKELY(rv == 0)) {
-                if(PreExitSign){
+                if (PreExitSign) {
                     if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
                         INTERNAL_BUFFER_LENGTH) {
                         qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
                     uint64_t emm = TermCount.fetch_add(1);
-                    if(emm == HANDLER_THREADS - 1){
-                        for(int i = 0;i<HANDLER_THREADS;++i)
+                    if (emm == HANDLER_THREADS - 1) {
+                        for (int i = 0; i < HANDLER_THREADS; ++i)
                             free(InternalBuffer[i]);
                         int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0666);
                         GlobalIndexStore->persist(index_fd);
@@ -247,11 +248,11 @@ namespace polar_race {
                     uint8_t handler_id = *(handler_id_p + 7);
                     *(handler_id_p + 7) = 0;
                     qLogDebugfmt("RequestProcessor[%s]: Get index = %lu", LDOMAIN(recvaddr.c_str()), file_offset);
-                    int64_t sub = (int64_t)file_offset - (int64_t)AllocatedOffset[handler_id];
-                    if (sub > (int64_t)INTERNAL_BUFFER_LENGTH || sub < 0) {
+                    int64_t sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
+                    if (sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0) {
                         READ_ON_DISK:
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
-                        if (rdv != VAL_SIZE) {
+                        if (UNLIKELY(rdv != VAL_SIZE)) {
                             qLogWarnfmt(
                                     "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
                                     LDOMAIN(recvaddr.c_str()), STRERR, rdv);
@@ -274,14 +275,19 @@ namespace polar_race {
                         memcpy(rr->value, InternalBuffer[handler_id] + sub, VAL_SIZE);
                         qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()),
                                      KVArrayDump(rr->value, 2).c_str());
-                        sub = (int64_t)file_offset - (int64_t)AllocatedOffset[handler_id];
-                        if (sub < 0 || sub > (int64_t)INTERNAL_BUFFER_LENGTH) {
+                        sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
+                        if (UNLIKELY(sub < 0 || sub > (int64_t) INTERNAL_BUFFER_LENGTH)) {
                             goto READ_ON_DISK;
                         }
                         qLogDebugfmt("RequestProcessor[%s]: Value found on InternalBuffer",
                                      LDOMAIN(recvaddr.c_str()));
                         rr->type = RequestType::TYPE_OK;
                     }
+                }
+                ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+                if (UNLIKELY(sv == -1)) {
+                    qLogFailfmt("RequestProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                    abort();
                 }
             } else {
                 qLogDebugfmt("RequestProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
@@ -301,27 +307,28 @@ namespace polar_race {
                     rr->type = RequestType::TYPE_OK;
                 }
                 qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+                if (sv == -1) {
+                    qLogFailfmt("RequestProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                    abort();
+                }
+                if (buffer_index == INTERNAL_BUFFER_LENGTH) {
+                    if (UNLIKELY(pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH,
+                                        AllocatedOffset[own_id]) !=
+                                 INTERNAL_BUFFER_LENGTH)) {
+                        qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                        abort();
+                    }
+                    if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
+                                               sizeof(own_id), &un_sendaddr) == -1)) {
+                        qLogFailfmt("RequestProcessor[%s]: Send Ready fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                        abort();
+                    }
+                    AllocatedOffset[own_id] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
+                    buffer_index = 0;
+                }
             }
 
-            ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-            if (sv == -1) {
-                qLogFailfmt("RequestProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                abort();
-            }
-            if (buffer_index == INTERNAL_BUFFER_LENGTH) {
-                if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
-                    INTERNAL_BUFFER_LENGTH) {
-                    qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                    abort();
-                }
-                if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
-                        sizeof(own_id), &un_sendaddr) == -1)) {
-                    qLogFailfmt("RequestProcessor[%s]: Send Ready fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                    abort();
-                }
-                AllocatedOffset[own_id] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
-                buffer_index = 0;
-            }
         }
     }
 
