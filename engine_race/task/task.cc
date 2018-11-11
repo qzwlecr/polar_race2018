@@ -101,10 +101,11 @@ namespace polar_race {
             }
             // set
             for(int i = 0; i < UDS_CONGEST_AMPLIFIER; i++){
-                uint8_t busy_mark = mode_busy, idle_mark = mode_idle;
-                if(atarray[((uint32_t)okid) + (i * HANDLER_THREADS)].compare_exchange_weak(busy_mark, idle_mark)){
-                    qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t)okid) + (i * HANDLER_THREADS));
-                }
+                uint8_t busy_mark;
+                do{
+                    busy_mark = mode_busy;
+                }while(atarray[((uint32_t)okid) + (i * HANDLER_THREADS)].compare_exchange_weak(busy_mark, mode_idle));
+                qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t)okid) + (i * HANDLER_THREADS));
             }
         }
         qLogSucc("BusyChecker: Exiting Gracefully..");
@@ -202,7 +203,6 @@ namespace polar_race {
                 continue;
             }
             if (UNLIKELY(rv == 0)) {
-                qLogInfofmt("RequestProcessor[%s]: Multiplexer timed out.", LDOMAIN(recvaddr.c_str()));
                 if(PreExitSign){
                     if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
                         INTERNAL_BUFFER_LENGTH) {
@@ -320,6 +320,7 @@ namespace polar_race {
                     abort();
                 }
                 AllocatedOffset[own_id] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
+                buffer_index = 0;
             }
         }
     }
