@@ -194,6 +194,7 @@ namespace polar_race {
         InitCount.fetch_add(1);
         MailBox successer;
         uint64_t buffer_index = 0;
+        struct timespec t = {0};
         while (true) {
             int rv = mp.wait(&successer, 1, 1000);
             if (UNLIKELY(rv == -1)) {
@@ -223,8 +224,10 @@ namespace polar_race {
                 }
                 continue;
             }
+            StartTimer(&t);
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                       sizeof(RequestResponse), &cliun);
+            tp->uds_rd += GetTimeElapsed(&t);
             if (UNLIKELY(gv != sizeof(RequestResponse))) {
                 qLogFailfmt("RequestProcessor[%s]: getRequest failed or incomplete: %s(%ld)", LDOMAIN(recvaddr.c_str()),
                             STRERR, gv);
@@ -237,10 +240,13 @@ namespace polar_race {
                 qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()),
                             KVArrayDump(rr->key, 2).c_str());
                 // look up in global index store
+                StartTimer(&t);
                 if (!GlobalIndexStore->get(key, file_offset)) {
+                    tp->index_get += GetTimeElapsed(&t);
                     qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
                     rr->type = RequestType::TYPE_EEXIST;
                 } else {
+                    tp->index_get += GetTimeElapsed(&t);
                     uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(&file_offset);
                     uint8_t handler_id = *(handler_id_p + 7);
                     *(handler_id_p + 7) = 0;
@@ -248,7 +254,9 @@ namespace polar_race {
                     int64_t sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
                     if (sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0) {
                         READ_ON_DISK:
+                        StartTimer(&t);
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
+                        tp->read_disk += GetTimeElapsed(&t);
                         if (UNLIKELY(rdv != VAL_SIZE)) {
                             qLogWarnfmt(
                                     "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
@@ -281,7 +289,9 @@ namespace polar_race {
                         rr->type = RequestType::TYPE_OK;
                     }
                 }
+                StartTimer(&t);
                 ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+                tp->uds_wr += GetTimeElapsed(&t);
                 if (UNLIKELY(sv == -1)) {
                     qLogFailfmt("RequestProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                     abort();
@@ -310,12 +320,14 @@ namespace polar_race {
                     abort();
                 }
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
+                    StartTimer(&t);
                     if (UNLIKELY(pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH,
                                         AllocatedOffset[own_id]) !=
                                  INTERNAL_BUFFER_LENGTH)) {
                         qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
+                    tp->spin_commit += GetTimeElapsed(&t);
                     if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
                                                sizeof(own_id), &un_sendaddr) == -1)) {
                         qLogFailfmt("RequestProcessor[%s]: Send Ready fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
