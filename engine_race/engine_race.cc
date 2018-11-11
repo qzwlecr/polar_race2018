@@ -310,9 +310,6 @@ namespace polar_race {
             qLogWarnfmt("Engine::Write recv failed or incomplete: %s(%ld)", strerror(errno), sv);
             return kIOError;
         }
-        if (rr.type != RequestType::TYPE_OK) {
-            return kNotFound;
-        }
         return kSucc;
     }
 
@@ -343,11 +340,7 @@ namespace polar_race {
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        if(rr.type != RequestType::TYPE_BUSY){
-            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
-        } else {
-            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
-        }
+        reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
         if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
