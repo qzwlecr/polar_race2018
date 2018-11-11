@@ -305,6 +305,10 @@ namespace polar_race {
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
         } else {
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
+            for(int i = 1; i < UDS_CONGEST_AMPLIFIER; i++){
+                uint8_t fake = OCCU_NO;
+                reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fake, OCCU_BUSY);
+            }
         }
         if (rv == -1) {
             qLogWarnfmt("Engine::Write recv failed or incomplete: %s(%ld)", strerror(errno), sv);
