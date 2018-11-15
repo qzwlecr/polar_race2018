@@ -1,13 +1,14 @@
 // Copyright [2018] Alibaba Cloud All rights reserved
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
-#endif
 #define _POSIX_C_SOURCE 201012
+#endif
 #include "engine_race.h"
 #include "consts/consts.h"
 #include "task/task.h"
 #include "format/log.h"
 #include "index/index.h"
+#include "syscalls/sys.h"
 #include <cstdio>
 #include <cstdlib>
 #include <thread>
@@ -64,6 +65,8 @@ namespace polar_race {
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
+    Accumulator newaff(0);
+    
 
     // =========== FOR RW Mode
     int operationfds[UDS_NUM] = {0};
@@ -279,6 +282,15 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return WriteRW(key, value);
         }
+        int curraff = HANDLER_THREADS;
+        int gav = sys_getaff(0, &curraff);
+        qLogDebugfmt("Engine::Write: affinity %d", curraff);
+        if(curraff == HANDLER_THREADS){
+            int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
+            sys_setaff(0, newaffinity);
+            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
+            curraff = newaffinity;
+        }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         memcpy(rr.value, value.data(), VAL_SIZE);
@@ -292,7 +304,7 @@ namespace polar_race {
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
         if (sv == -1) {
             qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld) ,using %ld", strerror(errno), sv, reqIdx % UDS_NUM);
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
@@ -322,6 +334,15 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return ReadRW(key, value);
         }
+        int curraff = HANDLER_THREADS;
+        int gav = sys_getaff(0, &curraff);
+        qLogDebugfmt("Engine::Write: affinity %d", curraff);
+        if(curraff == HANDLER_THREADS){
+            int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
+            sys_setaff(0, newaffinity);
+            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
+            curraff = newaffinity;
+        }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
@@ -335,7 +356,7 @@ namespace polar_race {
         qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
         if (sv == -1) {
             qLogWarnfmt("Engine::Read send failed or incomplete: %s(%ld)", strerror(errno), sv);
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
