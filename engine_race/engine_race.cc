@@ -284,6 +284,9 @@ namespace polar_race {
         }
         int curraff = HANDLER_THREADS;
         int gav = sys_getaff(0, &curraff);
+        if(gav == -1){
+            qLogWarnfmt("Engine::Write get affinity failed: %s", strerror(errno));
+        }
         qLogDebugfmt("Engine::Write: affinity %d", curraff);
         if(curraff == HANDLER_THREADS){
             int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
@@ -336,6 +339,9 @@ namespace polar_race {
         }
         int curraff = HANDLER_THREADS;
         int gav = sys_getaff(0, &curraff);
+        if(gav == -1){
+            qLogWarnfmt("Engine::Read get affinity failed: %s", strerror(errno));
+        }
         qLogDebugfmt("Engine::Write: affinity %d", curraff);
         if(curraff == HANDLER_THREADS){
             int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
