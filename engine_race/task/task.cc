@@ -9,7 +9,9 @@ extern "C"{
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/file.h>
+#include <sys/types.h>
 #include <malloc.h>
+#include <sched.h>
 }
 
 namespace polar_race {
@@ -159,6 +161,13 @@ namespace polar_race {
     }
 
     void RequestProcessor(std::string recvaddr, TimingProfile *tp, uint8_t own_id) {
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        CPU_SET(own_id, &set);
+        if (sched_setaffinity(0, sizeof(set), &set) == -1){
+            qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
+            abort();
+        }
         MailBox rdymb;
         if (UNLIKELY(rdymb.open() == -1)) {
             qLogFailfmt("RequestProcessor ready MailBox open failed: %s", STRERR);
@@ -254,7 +263,7 @@ namespace polar_race {
                     *(handler_id_p + 7) = 0;
                     qLogDebugfmt("RequestProcessor[%s]: Get index = %lu", LDOMAIN(recvaddr.c_str()), file_offset);
                     int64_t sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
-                    if (sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0) {
+                    if (LIKELY(sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0)) {
                         READ_ON_DISK:
                         StartTimer(&t);
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
