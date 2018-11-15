@@ -218,8 +218,10 @@ namespace polar_race {
                         flock(lockfd, LOCK_UN);
                         qLogSucc("Flusher unlocked filelock");
                         //ExitSign = true;
+                        PrintTiming(*tp);
                         exit(0);
                     }
+                    PrintTiming(*tp);
                     return;
                 }
                 continue;
