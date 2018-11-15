@@ -330,11 +330,13 @@ namespace polar_race {
                         abort();
                     }
                     tp->spin_commit += GetTimeElapsed(&t);
+                    StartTimer(&t);
                     if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
                                                sizeof(own_id), &un_sendaddr) == -1)) {
                         qLogFailfmt("RequestProcessor[%s]: Send Ready fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
+                    tp->uds_wr += GetTimeElapsed(&t);
                     AllocatedOffset[own_id] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
                     buffer_index = 0;
                 }
