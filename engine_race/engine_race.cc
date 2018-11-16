@@ -126,12 +126,30 @@ namespace polar_race {
         TermCount = 0;
         InitCount = 0;
 
-        int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
-        if(sem == -1){
+        int start_sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
+        if(start_sem == -1){
             qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
             abort();
         }
-        if(semctl(sem, 0, SETVAL, 1) == -1) {
+        if(semctl(start_sem, 0, SETVAL, 1) == -1) {
+            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+            abort();
+        }
+        read_sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
+        if(read_sem == -1){
+            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+            abort();
+        }
+        if(semctl(read_sem, 0, SETVAL, READ_CONCURRENCY) == -1) {
+            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+            abort();
+        }
+        write_sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
+        if(write_sem == -1){
+            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+            abort();
+        }
+        if(semctl(write_sem, 0, SETVAL, WRITE_CONCURRENCY) == -1) {
             qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
             abort();
         }
@@ -175,7 +193,7 @@ namespace polar_race {
                     .sem_num = 0,
                     .sem_op = 0
             };
-            semop(sem, &sem_buf, 1);
+            semop(start_sem, &sem_buf, 1);
             qLogSucc("Startup: Everything OK.");
         } else {
             // child
@@ -238,7 +256,7 @@ namespace polar_race {
                     .sem_num = 0,
                     .sem_op = -1
             };
-            semop(sem, &sem_buf, 1);
+            semop(start_sem, &sem_buf, 1);
             qLogSucc("RequestHandler: everything OK, will now go to indefinite sleep!!");
             while (true) {
                 select(1, NULL, NULL, NULL, NULL);
