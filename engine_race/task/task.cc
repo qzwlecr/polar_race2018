@@ -197,6 +197,10 @@ namespace polar_race {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
         }
+        if (posix_fadvise64(valuesfd, 0, 0, POSIX_FADV_RANDOM) == -1){
+            qLogFailfmt("RequestProcessor: Cannot advise file usage pattern: %s", strerror(errno));
+            abort();
+        }
         int valuesfd_w = ::open(VALUES_PATH.c_str(), O_DSYNC | O_WRONLY | O_DIRECT);
         if (valuesfd_w == -1) {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
