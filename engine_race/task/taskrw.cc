@@ -1,7 +1,6 @@
 #include "task.h"
 #include "../format/log.h"
 #include "../index/index.h"
-#include "../flusher/flusher.h"
 #include "../consts/consts.h"
 
 #include <iostream>

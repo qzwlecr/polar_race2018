@@ -44,8 +44,9 @@ void PrintTiming(const TimingProfile& tp){
     cout << "Time Spent on:" << endl;
     cout << "UDS Read: " << tp.uds_rd << endl;
     cout << "UDS Write: " << tp.uds_wr << endl;
+    cout << "Waiting Epoll: " << tp.epoll_wait << endl;
     cout << "Indexer Put: " << tp.index_put << endl;
     cout << "Indexer Get: " << tp.index_get << endl;
-    cout << "Waiting Commit: " << tp.spin_commit << endl;
+    cout << "Write Disk: " << tp.write_disk << endl;
     cout << "Read Disk: " << tp.read_disk << endl;
 }

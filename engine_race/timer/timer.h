@@ -12,9 +12,10 @@
 struct TimingProfile {
     uint64_t uds_rd;
     uint64_t uds_wr;
+    uint64_t epoll_wait;
     uint64_t index_put;
     uint64_t index_get;
-    uint64_t spin_commit;
+    uint64_t write_disk;
     uint64_t read_disk;
 };
 
