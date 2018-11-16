@@ -20,7 +20,7 @@ struct TimingDistribution {
     TimingDistribution():
         less10(0), f10to50(0), f50to100(0),
         f100to200(0), f200to300(0), large300(0),
-        total(0) {};
+        total(1) {};
     void accumulate(uint64_t eltime);
     void print()const;
 };
