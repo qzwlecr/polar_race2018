@@ -10,7 +10,6 @@ extern "C"{
 #include <unistd.h>
 #include <sys/file.h>
 #include <sys/types.h>
-#include <sys/sem.h>
 #include <malloc.h>
 #include <sched.h>
 }
@@ -22,8 +21,6 @@ namespace polar_race {
 
     volatile bool PreExitSign = false;
     volatile bool ExitSign = false;
-
-    int read_sem, write_sem;
 
     const uint32_t HB_MAGIC = 0x8088;
 
@@ -171,14 +168,6 @@ namespace polar_race {
             qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
             abort();
         }
-        struct sembuf sem_buf_down{
-                .sem_num = 0,
-                .sem_op = -1
-        };
-        struct sembuf sem_buf_up{
-                .sem_num = 0,
-                .sem_op = 1
-        };
         MailBox rdymb;
         if (UNLIKELY(rdymb.open() == -1)) {
             qLogFailfmt("RequestProcessor ready MailBox open failed: %s", STRERR);
@@ -280,11 +269,9 @@ namespace polar_race {
                     int64_t sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
                     if (LIKELY(sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0)) {
                         READ_ON_DISK:
-                        semop(read_sem, &sem_buf_down, 1);
                         StartTimer(&t);
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
                         tp->read_disk += GetTimeElapsed(&t);
-                        semop(read_sem, &sem_buf_up, 1);
                         if (UNLIKELY(rdv != VAL_SIZE)) {
                             qLogWarnfmt(
                                     "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
@@ -348,7 +335,6 @@ namespace polar_race {
                     abort();
                 }
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
-                    semop(write_sem, &sem_buf_down, 1);
                     StartTimer(&t);
                     if (UNLIKELY(pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH,
                                         AllocatedOffset[own_id]) !=
@@ -357,7 +343,6 @@ namespace polar_race {
                         abort();
                     }
                     tp->spin_commit += GetTimeElapsed(&t);
-                    semop(write_sem, &sem_buf_up, 1);
                     StartTimer(&t);
                     if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
                                                sizeof(own_id), &un_sendaddr) == -1)) {

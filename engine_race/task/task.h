@@ -13,7 +13,6 @@ namespace polar_race {
 
     extern volatile bool PreExitSign;
     extern volatile bool ExitSign; // on true, execute exit clean proc
-    extern int read_sem, write_sem;
 
     extern Accumulator NextIndex;
     extern Accumulator TermCount;
