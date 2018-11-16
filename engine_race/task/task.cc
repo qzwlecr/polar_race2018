@@ -213,10 +213,12 @@ namespace polar_race {
             }
             if (UNLIKELY(rv == 0)) {
                 if (PreExitSign) {
-                    if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
-                        INTERNAL_BUFFER_LENGTH) {
-                        qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                        abort();
+                    if (valuesfd_w != -1 && buffer_index != 0){
+                        if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
+                            INTERNAL_BUFFER_LENGTH) {
+                            qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                            abort();
+                        }
                     }
                     uint64_t emm = TermCount.fetch_add(1);
                     if (emm == HANDLER_THREADS - 1) {
