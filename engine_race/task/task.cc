@@ -190,11 +190,7 @@ namespace polar_race {
             qLogFailfmt("RequestProcessor: Cannot advise file usage pattern: %s", strerror(errno));
             abort();
         }
-        int valuesfd_w = ::open(VALUES_PATH.c_str(), O_DSYNC | O_WRONLY | O_DIRECT);
-        if (valuesfd_w == -1) {
-            qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
-            abort();
-        }
+        int valuesfd_w = -1;
         Multiplexer mp;
         if (UNLIKELY(mp.open() == -1)) {
             qLogFailfmt("BusyChecker: Multiplexer open failed: %s", STRERR);
@@ -317,6 +313,13 @@ namespace polar_race {
                     abort();
                 }
             } else {
+                if(UNLIKELY(valuesfd_w == -1)){
+                    valuesfd_w = ::open(VALUES_PATH.c_str(), O_DSYNC | O_WRONLY | O_DIRECT);
+                    if (valuesfd_w == -1) {
+                        qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
+                        abort();
+                    }
+                }
                 qLogDebugfmt("RequestProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                              *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
