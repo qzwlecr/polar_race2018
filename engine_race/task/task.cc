@@ -273,7 +273,9 @@ namespace polar_race {
                         READ_ON_DISK:
                         StartTimer(&t);
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
-                        tp->read_disk += GetTimeElapsed(&t);
+                        uint64_t rdtel = GetTimeElapsed(&t);
+                        tp->rddsk.accumulate(rdtel);
+                        tp->read_disk += rdtel;
                         if (UNLIKELY(rdv != VAL_SIZE)) {
                             qLogWarnfmt(
                                     "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <cstdio>
 
 using namespace std;
 
@@ -40,13 +41,36 @@ uint64_t GetTimeElapsed(struct timespec* tx){
 	return (uint64_t)reslt.tv_sec*1000000000lu+ reslt.tv_nsec;
 }
 
+void TimingDistribution::accumulate(uint64_t eltime){
+    total++;
+    if(eltime < 10) less10 ++;
+    else if(eltime < 50) f10to50 ++;
+    else if(eltime < 100) f50to100 ++;
+    else if(eltime < 200) f100to200 ++;
+    else if(eltime < 300) f200to300 ++;
+    else large300 ++;
+}
+
+#define PCTG(x, tot) (((x) * 100 ) / (tot))
+
+void TimingDistribution::print() const{
+    printf("[  0, 10): %7u %3d\%\n", less10, PCTG(less10, total));
+    printf("[ 10, 50): %7u %3d\%\n", f10to50, PCTG(f10to50, total));
+    printf("[ 50,100): %7u %3d\%\n", f50to100, PCTG(f50to100, total));
+    printf("[100,200): %7u %3d\%\n", f100to200, PCTG(f100to200, total));
+    printf("[200,300): %7u %3d\%\n", f200to300, PCTG(f200to300, total));
+    printf("[300,INF): %7u %3d\%\n", large300, PCTG(large300, total));
+}
+
 void PrintTiming(const TimingProfile& tp){
     cout << "Time Spent on:" << endl;
-    cout << "UDS Read: " << tp.uds_rd << endl;
-    cout << "UDS Write: " << tp.uds_wr << endl;
+    cout << "     UDS Read: " << tp.uds_rd << endl;
+    cout << "    UDS Write: " << tp.uds_wr << endl;
     cout << "Waiting Epoll: " << tp.epoll_wait << endl;
-    cout << "Indexer Put: " << tp.index_put << endl;
-    cout << "Indexer Get: " << tp.index_get << endl;
-    cout << "Write Disk: " << tp.write_disk << endl;
-    cout << "Read Disk: " << tp.read_disk << endl;
+    cout << "  Indexer Put: " << tp.index_put << endl;
+    cout << "  Indexer Get: " << tp.index_get << endl;
+    cout << "   Write Disk: " << tp.write_disk << endl;
+    cout << "    Read Disk: " << tp.read_disk << endl;
+    cout << "Read Disk Dist" << endl;
+    tp.rddsk.print();
 }
