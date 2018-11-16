@@ -274,7 +274,7 @@ namespace polar_race {
                         StartTimer(&t);
                         ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
                         uint64_t rdtel = GetTimeElapsed(&t);
-                        tp->rddsk.accumulate(rdtel);
+                        tp->rddsk.accumulate((rdtel / 1000));
                         tp->read_disk += rdtel;
                         if (UNLIKELY(rdv != VAL_SIZE)) {
                             qLogWarnfmt(
