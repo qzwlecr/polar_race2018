@@ -5,7 +5,6 @@
 #include <string>
 #include "../commu/commu.h"
 #include "../timer/timer.h"
-#include <atomic>
 
 namespace polar_race {
 
@@ -18,7 +17,6 @@ namespace polar_race {
     const std::string HB_ADDR = (std::string() + '\0') + "ralopdb/heartbeat";
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
     const std::string RESP_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/respond/";
-    const std::string HANDLER_READY_ADDR = (std::string() + '\0') + "ralopdb/ready";
 
     // MODE_MPROC_SEQ_WR
     void RequestProcessor(std::string recvaddr, TimingProfile* tmpf);
@@ -34,7 +32,6 @@ namespace polar_race {
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
-    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle);
 };
 
 #endif

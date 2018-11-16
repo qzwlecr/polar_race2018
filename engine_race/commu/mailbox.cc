@@ -28,7 +28,7 @@ namespace polar_race {
         return tmpaddr;
     }
 
-    MailBox::MailBox(const string &addr) {
+    MailBox::MailBox(string &addr) {
         struct sockaddr_un tmpaddr = mksockaddr_un(addr);
         // creating socket
         int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
