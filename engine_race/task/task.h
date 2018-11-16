@@ -11,16 +11,9 @@ namespace polar_race {
 
     extern volatile int lockfd;
 
-    extern volatile bool PreExitSign;
     extern volatile bool ExitSign; // on true, execute exit clean proc
 
     extern Accumulator NextIndex;
-    extern Accumulator TermCount;
-    extern Accumulator InitCount;
-
-    extern char *InternalBuffer[HANDLER_THREADS];
-
-    extern uint64_t AllocatedOffset[HANDLER_THREADS];
 
     const std::string HB_ADDR = (std::string() + '\0') + "ralopdb/heartbeat";
     const std::string REQ_ADDR_PREFIX = (std::string() + '\0') + "ralopdb/request/";
@@ -28,7 +21,7 @@ namespace polar_race {
     const std::string HANDLER_READY_ADDR = (std::string() + '\0') + "ralopdb/ready";
 
     // MODE_MPROC_SEQ_WR
-    void RequestProcessor(std::string recvaddr, TimingProfile* tmpf, uint8_t own_id);
+    void RequestProcessor(std::string recvaddr, TimingProfile* tmpf);
 
     void HeartBeater(std::string sendaddr, bool *runstate);
 
@@ -41,7 +34,7 @@ namespace polar_race {
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
-    void BusyChecker(std::atomic<unsigned char>* atarray, uint8_t mode_busy, uint8_t mode_idle, bool* running);
+    void BusyChecker(std::atomic_uint8_t* atarray, uint8_t mode_busy, uint8_t mode_idle);
 };
 
 #endif

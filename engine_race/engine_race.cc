@@ -1,14 +1,14 @@
 // Copyright [2018] Alibaba Cloud All rights reserved
 #ifdef _POSIX_C_SOURCE
 #undef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 201012
 #endif
+#define _POSIX_C_SOURCE 201012
 #include "engine_race.h"
 #include "consts/consts.h"
 #include "task/task.h"
 #include "format/log.h"
+#include "flusher/flusher.h"
 #include "index/index.h"
-#include "syscalls/sys.h"
 #include <cstdio>
 #include <cstdlib>
 #include <thread>
@@ -57,16 +57,15 @@ namespace polar_race {
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
-    std::atomic<unsigned char> reqfds_occupy[UDS_NUM];
+    std::atomic_uint8_t reqfds_occupy[UDS_NUM];
     const uint8_t OCCU_NO = 0;
     const uint8_t OCCU_BUSY = 1;
     const uint8_t OCCU_WORK = 2;
     Accumulator requestId(0);
+    Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
     std::thread* selfclsr = nullptr;
-    Accumulator newaff(0);
-    
 
     // =========== FOR RW Mode
     int operationfds[UDS_NUM] = {0};
@@ -121,10 +120,9 @@ namespace polar_race {
                 abort();
             }
             qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
+            WrittenIndex = valfstat.st_size;
             NextIndex = valfstat.st_size;
         }
-        TermCount = 0;
-        InitCount = 0;
 
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){
@@ -158,18 +156,15 @@ namespace polar_race {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }
-            reqfds_occupy[i] = OCCU_NO;
+            reqfds_occupy[i] = false;
         }
         qLogInfo("Startup: FORK !");
         if (fork()) {
             // parent
             qLogSucc("Startup: FORK completed.");
+            qLogSucc("Startup: HeartBeat thread.");
             std::thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
-            qLogSucc("Startup: HeartBeat thread OK.");
-            std::thread bcthread(BusyChecker, &(reqfds_occupy[0]), OCCU_BUSY, OCCU_NO, &running);
-            bcthread.detach();
-            qLogSucc("Startup: BusyChecker OK.");
             // qLogInfo("Startup: wait ReqHandler startup complete.");
             struct sembuf sem_buf{
                     .sem_num = 0,
@@ -214,14 +209,15 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
+            flusher = new Flusher();
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
-                AllocatedOffset[i] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
-                InternalBuffer[i] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
+                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]));
                 handthrd.detach();
             }
+            /* qLogSucc("RequestHandler: starting Disk Operation thread.."); */
+            /* flusher->flush_begin(); */
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
@@ -233,7 +229,6 @@ namespace polar_race {
             }
             std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
             hbdtrd.detach();
-            while(InitCount != HANDLER_THREADS);
             struct sembuf sem_buf{
                     .sem_num = 0,
                     .sem_op = -1
@@ -282,18 +277,6 @@ namespace polar_race {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return WriteRW(key, value);
         }
-        int curraff = HANDLER_THREADS;
-        int gav = sys_getaff(0, &curraff);
-        if(gav == -1){
-            qLogWarnfmt("Engine::Write get affinity failed: %s", strerror(errno));
-        }
-        qLogDebugfmt("Engine::Write: affinity %d", curraff);
-        if(curraff == HANDLER_THREADS){
-            int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
-            sys_setaff(0, newaffinity);
-            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
-            curraff = newaffinity;
-        }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         memcpy(rr.value, value.data(), VAL_SIZE);
@@ -304,13 +287,13 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = OCCU_NO;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
-            qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld) ,using %ld", strerror(errno), sv, reqIdx % UDS_NUM);
-            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+            qLogWarnfmt("Engine::Write send failed or incomplete: %s(%ld)", strerror(errno), sv);
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
@@ -320,14 +303,13 @@ namespace polar_race {
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
         } else {
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
-            for(int i = 1; i < UDS_CONGEST_AMPLIFIER; i++){
-                uint8_t fake = OCCU_NO;
-                reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fake, OCCU_BUSY);
-            }
         }
         if (rv == -1) {
             qLogWarnfmt("Engine::Write recv failed or incomplete: %s(%ld)", strerror(errno), sv);
             return kIOError;
+        }
+        if (rr.type != RequestType::TYPE_OK) {
+            return kNotFound;
         }
         return kSucc;
     }
@@ -336,18 +318,6 @@ namespace polar_race {
     RetCode EngineRace::Read(const PolarString &key, std::string *value) {
         if(EXEC_MODE == MODE_MPROC_RAND_WR){
             return ReadRW(key, value);
-        }
-        int curraff = HANDLER_THREADS;
-        int gav = sys_getaff(0, &curraff);
-        if(gav == -1){
-            qLogWarnfmt("Engine::Read get affinity failed: %s", strerror(errno));
-        }
-        qLogDebugfmt("Engine::Write: affinity %d", curraff);
-        if(curraff == HANDLER_THREADS){
-            int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
-            sys_setaff(0, newaffinity);
-            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
-            curraff = newaffinity;
         }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
@@ -358,11 +328,11 @@ namespace polar_race {
         do {
             reqIdx = requestId.fetch_add(1);
             fk = OCCU_NO;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, OCCU_WORK) == false);
         qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
             qLogWarnfmt("Engine::Read send failed or incomplete: %s(%ld)", strerror(errno), sv);
             reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
@@ -371,7 +341,11 @@ namespace polar_race {
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+        if(rr.type != RequestType::TYPE_BUSY){
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+        } else {
+            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
+        }
         if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
@@ -539,6 +513,7 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandlerRW: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
+            flusher = new Flusher();
             qLogSuccfmt("RequestHandlerConfiguratorRW: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHanderRW: Starting Handler thread %d", i);
@@ -547,6 +522,7 @@ namespace polar_race {
             }
             // For RW, we dont need separate disk flushing thread
             /* qLogSucc("RequestHandlerRW: starting Disk Operation thread.."); */
+            /* flusher->flush_begin(); */
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("RequestHandlerRW: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
             if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
@@ -582,11 +558,11 @@ namespace polar_race {
         rr.foffset = wroffset;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        uint8_t fk = false;
+        bool fk = false;
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponseRW), &(rsaddr[reqIdx % HANDLER_THREADS]));
@@ -633,11 +609,11 @@ namespace polar_race {
         rr.type = RequestTypeRW::TYPERW_GET;
         // Acquire an Mailbox
         uint64_t reqIdx = 0;
-        uint8_t fk = false;
+        bool fk = false;
         do {
             reqIdx = requestId.fetch_add(1);
             fk = false;
-        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true) == false);
+        } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fk, true) == false);
         // then OK, we do writing work
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponseRW), &(rsaddr[reqIdx % HANDLER_THREADS]));
