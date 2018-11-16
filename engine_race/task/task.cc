@@ -272,7 +272,8 @@ namespace polar_race {
                     if (LIKELY(sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0)) {
                         READ_ON_DISK:
                         StartTimer(&t);
-                        ssize_t rdv = pread(valuesfd, rr->value, VAL_SIZE, file_offset);
+                        lseek(valuesfd, file_offset, SEEK_SET);
+                        ssize_t rdv = read(valuesfd, rr->value, VAL_SIZE);
                         uint64_t rdtel = GetTimeElapsed(&t);
                         tp->rddsk.accumulate((rdtel / 1000));
                         tp->read_disk += rdtel;
@@ -340,9 +341,8 @@ namespace polar_race {
                 }
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
                     StartTimer(&t);
-                    if (UNLIKELY(pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH,
-                                        AllocatedOffset[own_id]) !=
-                                 INTERNAL_BUFFER_LENGTH)) {
+                    lseek(valuesfd_w, AllocatedOffset[own_id], SEEK_SET);
+                    if (UNLIKELY(write(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH) != INTERNAL_BUFFER_LENGTH)) {
                         qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
