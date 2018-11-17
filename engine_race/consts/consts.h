@@ -23,8 +23,8 @@ namespace polar_race {
     extern std::string VALUES_PATH;
     extern std::string INDECIES_PATH;
     const int UDS_CONGEST_AMPLIFIER = 2;
-    const int READ_CONCURRENCY = 16;
-    const int WRITE_CONCURRENCY = 32;
+    const int READ_CONCURRENCY = 32;
+    const int WRITE_CONCURRENCY = 64;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;
     const bool SELFCLOSER_ENABLED = true;
