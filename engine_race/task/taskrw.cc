@@ -43,7 +43,6 @@ namespace polar_race {
     }
 
     void HeartBeatChecker_rw(string recvaddr){
-        ExitSign = false;
         qLogSuccfmt("HeartBeatCheckerRW: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (UNLIKELY(hbcmb.desc == -1)) {
@@ -71,7 +70,6 @@ namespace polar_race {
             if (UNLIKELY(rv == 0)) {
                 qLogFail("HeartBeatCheckerRW: Timed out. --> Terminating");
                 // timed out!
-                ExitSign = true;
                 // do clean work
                 mp.close();
                 hbcmb.close();
@@ -92,7 +90,6 @@ namespace polar_race {
             qLogDebug("HeartBeatCheckerRW: beat!");
             if (UNLIKELY(rdv == -1)) {
                 qLogFailfmt("HeartBeatCheckerRW: unexpected MailBox Get Failure: %s", STRERR);
-                ExitSign = true;
                 mp.close();
                 hbcmb.close();
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);

@@ -54,12 +54,12 @@ void TimingDistribution::accumulate(uint64_t eltime){
 #define PCTG(x, tot) (((x) * 100 ) / (tot))
 
 void TimingDistribution::print() const{
-    printf("[  0, 10): %7u %3d\%\n", less10, PCTG(less10, total));
-    printf("[ 10, 50): %7u %3d\%\n", f10to50, PCTG(f10to50, total));
-    printf("[ 50,100): %7u %3d\%\n", f50to100, PCTG(f50to100, total));
-    printf("[100,200): %7u %3d\%\n", f100to200, PCTG(f100to200, total));
-    printf("[200,300): %7u %3d\%\n", f200to300, PCTG(f200to300, total));
-    printf("[300,INF): %7u %3d\%\n", large300, PCTG(large300, total));
+    printf("[  0, 10): %7u %3d%% \n", less10, PCTG(less10, total));
+    printf("[ 10, 50): %7u %3d%% \n", f10to50, PCTG(f10to50, total));
+    printf("[ 50,100): %7u %3d%% \n", f50to100, PCTG(f50to100, total));
+    printf("[100,200): %7u %3d%% \n", f100to200, PCTG(f100to200, total));
+    printf("[200,300): %7u %3d%% \n", f200to300, PCTG(f200to300, total));
+    printf("[300,INF): %7u %3d%% \n", large300, PCTG(large300, total));
 }
 
 void PrintTiming(const TimingProfile& tp){

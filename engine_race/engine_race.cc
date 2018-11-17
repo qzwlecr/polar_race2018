@@ -123,7 +123,6 @@ namespace polar_race {
             qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
             NextIndex = valfstat.st_size;
         }
-        TermCount = 0;
         InitCount = 0;
 
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
@@ -219,7 +218,6 @@ namespace polar_race {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
                 std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
                 AllocatedOffset[i] = NextIndex.fetch_add(INTERNAL_BUFFER_LENGTH);
-                InternalBuffer[i] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
                 handthrd.detach();
             }
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
@@ -342,11 +340,11 @@ namespace polar_race {
         if(gav == -1){
             qLogWarnfmt("Engine::Read get affinity failed: %s", strerror(errno));
         }
-        qLogDebugfmt("Engine::Write: affinity %d", curraff);
+        qLogDebugfmt("Engine::Read: affinity %d", curraff);
         if(curraff == HANDLER_THREADS){
             int newaffinity = (int)(newaff.fetch_add(1) % HANDLER_THREADS);
             sys_setaff(0, newaffinity);
-            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
+            qLogInfofmt("Engine::Read new affinity %d", newaffinity);
             curraff = newaffinity;
         }
         RequestResponse rr = {0};

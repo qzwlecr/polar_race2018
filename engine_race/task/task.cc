@@ -19,9 +19,6 @@ namespace polar_race {
 #define STRERR (strerror(errno))
 #define LDOMAIN(x) ((x) + 1)
 
-    volatile bool PreExitSign = false;
-    volatile bool ExitSign = false;
-
     const uint32_t HB_MAGIC = 0x8088;
 
     char *InternalBuffer[HANDLER_THREADS];
@@ -31,20 +28,6 @@ namespace polar_race {
     Accumulator NextIndex(0);
     Accumulator TermCount(0);
     Accumulator InitCount(0);
-
-    void SelfCloser(int timeout, bool *running) {
-        int timed = 0;
-        while (*running) {
-            sleep(1);
-            timed += 1;
-            if (timed >= timeout) {
-                qLogFail("SelfCloser: Sanity execution time exceeded.");
-                qLogFail("SelfCloser: Forcibly termination..");
-                exit(127);
-            }
-        }
-        qLogSucc("SelfCloser: Exiting Gracefully..");
-    }
 
     void HeartBeater(std::string sendaddr, bool *running) {
         qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
@@ -113,7 +96,6 @@ namespace polar_race {
 
     void HeartBeatChecker(std::string recvaddr) {
         // ENSURE
-        PreExitSign = false;
         qLogSuccfmt("HeartBeatChecker: initialize %s", LDOMAIN(recvaddr.c_str()));
         MailBox hbcmb(recvaddr);
         if (UNLIKELY(hbcmb.desc == -1)) {
@@ -141,23 +123,43 @@ namespace polar_race {
             if (UNLIKELY(rv == 0)) {
                 qLogFail("HeartBeatChecker: Timed out.");
                 // timed out!
-                PreExitSign = true;
-                // do clean work
                 mp.close();
                 hbcmb.close();
-                return;
+                break;
             }
             // not very ok exactly..
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
             qLogDebug("HeartBeatChecker: beat!");
             if (UNLIKELY(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
-                PreExitSign = true;
                 mp.close();
                 hbcmb.close();
-                return;
+                break;
             }
         }
+        int value_fd = open(VALUES_PATH.c_str(), O_DIRECT | O_DSYNC | O_WRONLY);
+        if (value_fd == -1) {
+            qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
+            abort();
+        }
+        for(int i = 0; i< HANDLER_THREADS; i++) {
+            if (pwrite(value_fd, InternalBuffer[i], INTERNAL_BUFFER_LENGTH, AllocatedOffset[i]) != INTERNAL_BUFFER_LENGTH) {
+                qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                abort();
+            }
+            free(InternalBuffer[i]);
+        }
+        for (int i = 0; i < HANDLER_THREADS; i++){
+            std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
+            PrintTiming(handtps[i]);
+            std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
+        }
+        int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0666);
+        GlobalIndexStore->persist(index_fd);
+        close(index_fd);
+        flock(lockfd, LOCK_UN);
+        qLogSucc("Flusher unlocked filelock");
+        exit(0);
     }
 
     void RequestProcessor(std::string recvaddr, TimingProfile *tp, uint8_t own_id) {
@@ -191,54 +193,12 @@ namespace polar_race {
             abort();
         }
         int valuesfd_w = -1;
-        Multiplexer mp;
-        if (UNLIKELY(mp.open() == -1)) {
-            qLogFailfmt("BusyChecker: Multiplexer open failed: %s", STRERR);
-            abort();
-        }
-        if (UNLIKELY(mp.listen(reqmb) == -1)) {
-            qLogFailfmt("BusyChecker: Multiplexer listen HBMailBox failed: %s", STRERR);
-            abort();
-        }
+        InternalBuffer[own_id] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
         InitCount.fetch_add(1);
         MailBox successer;
         uint64_t buffer_index = 0;
         struct timespec t = {0};
         while (true) {
-            StartTimer(&t);
-            int rv = mp.wait(&successer, 1, 1000);
-            if (UNLIKELY(rv == -1)) {
-                qLogWarnfmt("RequestProcessor[%s]: Multiplexer Wait Failed: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                continue;
-            }
-            if (UNLIKELY(rv == 0)) {
-                if (PreExitSign) {
-                    if (valuesfd_w != -1 && buffer_index != 0){
-                        if (pwrite(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH, AllocatedOffset[own_id]) !=
-                            INTERNAL_BUFFER_LENGTH) {
-                            qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                            abort();
-                        }
-                    }
-                    uint64_t emm = TermCount.fetch_add(1);
-                    if (emm == HANDLER_THREADS - 1) {
-                        for (int i = 0; i < HANDLER_THREADS; ++i)
-                            free(InternalBuffer[i]);
-                        int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR, 0666);
-                        GlobalIndexStore->persist(index_fd);
-                        close(index_fd);
-                        flock(lockfd, LOCK_UN);
-                        qLogSucc("Flusher unlocked filelock");
-                        //ExitSign = true;
-                        PrintTiming(*tp);
-                        exit(0);
-                    }
-                    PrintTiming(*tp);
-                    return;
-                }
-                continue;
-            }
-            tp->epoll_wait += GetTimeElapsed(&t);
             StartTimer(&t);
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
                                       sizeof(RequestResponse), &cliun);
@@ -330,7 +290,9 @@ namespace polar_race {
                 uint8_t *handler_id_p = reinterpret_cast<uint8_t *>(&file_offset);
                 *(handler_id_p + 7) = own_id;
                 memcpy(InternalBuffer[own_id] + buffer_index, rr->value, VAL_SIZE);
+                StartTimer(&t);
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
+                tp->index_put+=GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
                 buffer_index += VAL_SIZE;
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
