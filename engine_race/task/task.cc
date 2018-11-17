@@ -106,6 +106,7 @@ namespace polar_race {
             qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t) okid));
         }
         qLogSucc("BusyChecker: Exiting Gracefully..");
+        hbcmb.close();
     }
 
     void HeartBeatChecker(std::string recvaddr) {
