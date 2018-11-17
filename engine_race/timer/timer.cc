@@ -63,14 +63,15 @@ void TimingDistribution::print() const{
 }
 
 void PrintTiming(const TimingProfile& tp){
-    cout << "Time Spent on:" << endl;
-    cout << "     UDS Read: " << tp.uds_rd << endl;
-    cout << "    UDS Write: " << tp.uds_wr << endl;
-    cout << "Waiting Epoll: " << tp.epoll_wait << endl;
-    cout << "  Indexer Put: " << tp.index_put << endl;
-    cout << "  Indexer Get: " << tp.index_get << endl;
-    cout << "   Write Disk: " << tp.write_disk << endl;
-    cout << "    Read Disk: " << tp.read_disk << endl;
-    cout << "Read Disk Dist" << endl;
+    cout << "      Time Spent on:" << endl;
+    cout << "          UDS Read: " << tp.uds_rd << endl;
+    cout << "         UDS Write: " << tp.uds_wr << endl;
+    cout << "       Indexer Put: " << tp.index_put << endl;
+    cout << "       Indexer Get: " << tp.index_get << endl;
+    cout << " Waiting Read Disk: " << tp.waiting_read_disk<< endl;
+    cout << "Waiting Write Disk: " << tp.waiting_write_disk << endl;
+    cout << "        Write Disk: " << tp.write_disk<< endl;
+    cout << "         Read Disk: " << tp.read_disk << endl;
+    cout << "      Read Disk Dist" << endl;
     tp.rddsk.print();
 }

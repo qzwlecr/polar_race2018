@@ -124,6 +124,10 @@ namespace polar_race {
             NextIndex = valfstat.st_size;
         }
         InitCount = 0;
+        ReadHead = 0;
+        WriteHead = 0;
+        ReadTail = 0;
+        WriteTail = 0;
 
         int sem = semget(IPC_PRIVATE, 1, 0666|IPC_CREAT);
         if(sem == -1){

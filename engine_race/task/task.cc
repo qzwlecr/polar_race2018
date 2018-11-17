@@ -23,11 +23,27 @@ namespace polar_race {
 
     char *InternalBuffer[HANDLER_THREADS];
 
+    Accumulator ReadTail(0), ReadHead(0);
+    Accumulator WriteTail(0), WriteHead(0);
+
     uint64_t AllocatedOffset[HANDLER_THREADS];
 
     Accumulator NextIndex(0);
-    Accumulator TermCount(0);
     Accumulator InitCount(0);
+
+    void SelfCloser(int timeout, bool *running) {
+        int timed = 0;
+        while (*running) {
+            sleep(1);
+            timed += 1;
+            if (timed >= timeout) {
+                qLogFail("SelfCloser: Sanity execution time exceeded.");
+                qLogFail("SelfCloser: Forcibly termination..");
+                exit(127);
+            }
+        }
+        qLogSucc("SelfCloser: Exiting Gracefully..");
+    }
 
     void HeartBeater(std::string sendaddr, bool *running) {
         qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
@@ -195,7 +211,6 @@ namespace polar_race {
         int valuesfd_w = -1;
         InternalBuffer[own_id] = (char *)memalign(getpagesize(), INTERNAL_BUFFER_LENGTH);
         InitCount.fetch_add(1);
-        MailBox successer;
         uint64_t buffer_index = 0;
         struct timespec t = {0};
         while (true) {
@@ -229,9 +244,14 @@ namespace polar_race {
                     int64_t sub = (int64_t) file_offset - (int64_t) AllocatedOffset[handler_id];
                     if (LIKELY(sub > (int64_t) INTERNAL_BUFFER_LENGTH || sub < 0)) {
                         READ_ON_DISK:
-                        StartTimer(&t);
                         lseek(valuesfd, file_offset, SEEK_SET);
+                        StartTimer(&t);
+                        auto ticket = ReadTail.fetch_add(1);
+                        while(ReadHead + READ_CONCURRENCY < ticket);
+                        tp->waiting_read_disk += GetTimeElapsed(&t);
+                        StartTimer(&t);
                         ssize_t rdv = read(valuesfd, rr->value, VAL_SIZE);
+                        ++ReadHead;
                         uint64_t rdtel = GetTimeElapsed(&t);
                         tp->rddsk.accumulate((rdtel / 1000));
                         tp->read_disk += rdtel;
@@ -307,13 +327,18 @@ namespace polar_race {
                     abort();
                 }
                 if (buffer_index == INTERNAL_BUFFER_LENGTH) {
-                    StartTimer(&t);
                     lseek(valuesfd_w, AllocatedOffset[own_id], SEEK_SET);
+                    StartTimer(&t);
+                    auto ticket = WriteTail.fetch_add(1);
+                    while(WriteHead + WRITE_CONCURRENCY < ticket);
+                    tp->waiting_write_disk += GetTimeElapsed(&t);
+                    StartTimer(&t);
                     if (UNLIKELY(write(valuesfd_w, InternalBuffer[own_id], INTERNAL_BUFFER_LENGTH) != INTERNAL_BUFFER_LENGTH)) {
                         qLogFailfmt("RequestProcessor[%s]: Write fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
-                    tp->write_disk += GetTimeElapsed(&t);
+                    tp->write_disk+=GetTimeElapsed(&t);
+                    ++WriteHead;
                     StartTimer(&t);
                     if (UNLIKELY(rdymb.sendOne(reinterpret_cast<const char *>(&own_id),
                                                sizeof(own_id), &un_sendaddr) == -1)) {

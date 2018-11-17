@@ -6,10 +6,14 @@
 #include "../commu/commu.h"
 #include "../timer/timer.h"
 #include <atomic>
+#include <condition_variable>
 
 namespace polar_race {
 
     extern volatile int lockfd;
+
+    extern Accumulator ReadTail, ReadHead;
+    extern Accumulator WriteTail, WriteHead;
 
     extern Accumulator NextIndex;
     extern Accumulator InitCount;
