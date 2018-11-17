@@ -58,6 +58,7 @@ namespace polar_race {
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
     std::atomic<unsigned char> reqfds_occupy[UDS_NUM];
+    std::atomic<unsigned char> handler_busy[HANDLER_THREADS];
     const uint8_t OCCU_NO = 0;
     const uint8_t OCCU_BUSY = 1;
     const uint8_t OCCU_WORK = 2;
@@ -170,7 +171,7 @@ namespace polar_race {
             std::thread hbthread(HeartBeater, HB_ADDR, &running);
             hbthread.detach();
             qLogSucc("Startup: HeartBeat thread OK.");
-            std::thread bcthread(BusyChecker, &(reqfds_occupy[0]), OCCU_BUSY, OCCU_NO, &running);
+            std::thread bcthread(BusyChecker, &(handler_busy[0]), OCCU_BUSY, OCCU_NO, &running);
             bcthread.detach();
             qLogSucc("Startup: BusyChecker OK.");
             // qLogInfo("Startup: wait ReqHandler startup complete.");
@@ -308,6 +309,8 @@ namespace polar_race {
             fk = OCCU_NO;
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
         // then OK, we do writing work
+        for(; handler_busy[curraff % HANDLER_THREADS] == OCCU_BUSY; curraff++);
+        curraff = curraff % HANDLER_THREADS;
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
         if (sv == -1) {
@@ -318,14 +321,9 @@ namespace polar_race {
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        if(rr.type != RequestType::TYPE_BUSY){
-            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
-        } else {
-            reqfds_occupy[reqIdx % UDS_NUM] = OCCU_BUSY;
-            for(int i = 1; i < UDS_CONGEST_AMPLIFIER; i++){
-                uint8_t fake = OCCU_NO;
-                reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_strong(fake, OCCU_BUSY);
-            }
+        reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
+        if(rr.type == RequestType::TYPE_BUSY){
+            handler_busy[curraff] = OCCU_BUSY;
         }
         if (rv == -1) {
             qLogWarnfmt("Engine::Write recv failed or incomplete: %s(%ld)", strerror(errno), sv);
@@ -363,6 +361,8 @@ namespace polar_race {
         } while (reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, OCCU_WORK) == false);
         qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
         // then OK, we do writing work
+        for(; handler_busy[curraff % HANDLER_THREADS] == OCCU_BUSY; curraff++);
+        curraff = curraff % HANDLER_THREADS;
         ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[curraff]));
         if (sv == -1) {
@@ -373,11 +373,14 @@ namespace polar_race {
         struct sockaddr_un useless;
         ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
                 reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
         if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
         }
+        if(rr.type == RequestType::TYPE_BUSY){
+            handler_busy[curraff] = OCCU_BUSY;
+        }
+        reqfds_occupy[reqIdx % UDS_NUM] = OCCU_NO;
         if (rr.type != RequestType::TYPE_OK) {
             return kNotFound;
         }

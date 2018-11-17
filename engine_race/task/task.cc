@@ -101,11 +101,9 @@ namespace polar_race {
                 continue;
             }
             // set
-            for (int i = 0; i < UDS_CONGEST_AMPLIFIER; i++) {
-                uint8_t busy_mark = mode_busy;
-               atarray[((uint32_t) okid) + (i * HANDLER_THREADS)].compare_exchange_strong(busy_mark, mode_idle);
-                qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t) okid) + (i * HANDLER_THREADS));
-            }
+            uint8_t busy_mark = mode_busy;
+            atarray[((uint32_t) okid)].compare_exchange_strong(busy_mark, mode_idle);
+            qLogDebugfmt("BusyChecker: cleared busy state for %u", ((uint32_t) okid));
         }
         qLogSucc("BusyChecker: Exiting Gracefully..");
     }
