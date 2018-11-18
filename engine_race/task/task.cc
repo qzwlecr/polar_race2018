@@ -111,7 +111,6 @@ namespace polar_race {
         cpu_set_t set;
         CPU_ZERO(&set);
         CPU_SET(own_id * 2, &set);
-        CPU_SET(own_id * 2 + 1, &set);
         //dirty hard code
         if (sched_setaffinity(0, sizeof(set), &set) == -1) {
             qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
