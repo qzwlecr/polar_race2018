@@ -272,7 +272,7 @@ namespace polar_race {
         memcpy(rr.value, value.data(), VAL_SIZE);
         rr.type = RequestType::TYPE_WR;
         ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
-                                                 &(rsaddr[curraff % HANDLER_THREADS]));
+                                                 &(rsaddr[curraff/2]));
         if (sv == -1) {
             return kIOError;
         }
@@ -305,7 +305,7 @@ namespace polar_race {
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
         ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
-                                                 &(rsaddr[curraff % HANDLER_THREADS]));
+                                                 &(rsaddr[curraff/2]));
         if (sv == -1) {
             return kIOError;
         }
