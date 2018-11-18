@@ -14,6 +14,8 @@ namespace polar_race{
 int sys_getaff(pid_t pid, int* cpuid);
 int sys_setaff(pid_t pid, int cpuid);
 
+
+
 };
 
 
