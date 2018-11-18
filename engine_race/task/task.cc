@@ -108,14 +108,7 @@ namespace polar_race {
     }
 
     void RequestProcessor(std::string recvaddr, TimingProfile *tp, uint8_t own_id) {
-        cpu_set_t set;
-        CPU_ZERO(&set);
-        CPU_SET(own_id * 2, &set);
-        //dirty hard code
-        if (sched_setaffinity(0, sizeof(set), &set) == -1) {
-            qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
-            abort();
-        }
+        bool attached = false;
         MailBox reqmb(recvaddr);
         if (UNLIKELY(reqmb.desc == -1)) {
             qLogFailfmt("RequestProcessor recv MailBox open failed: %s", STRERR);
@@ -255,6 +248,17 @@ namespace polar_race {
                 }
                 qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             } else {
+                if(UNLIKELY(!attached)){
+                    cpu_set_t set;
+                    CPU_ZERO(&set);
+                    CPU_SET(own_id * 2, &set);
+                    //dirty hard code
+                    if (sched_setaffinity(0, sizeof(set), &set) == -1) {
+                        qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
+                        abort();
+                    }
+                    attached = true;
+                }
                 qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                              *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
