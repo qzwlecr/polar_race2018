@@ -71,7 +71,9 @@ namespace polar_race {
     void *Flusher::read() {
         cpu_set_t set;
         CPU_ZERO(&set);
-        CPU_SET(CONCURRENT_QUERY - 1, &set);
+        for (int i = 1; i < CONCURRENT_QUERY; i+=2) {
+            CPU_SET(i, &set);
+        }
         //dirty hard code
         if (sched_setaffinity(0, sizeof(set), &set) == -1) {
             qLogFailfmt("RequestProcessor sched set affinity failed: %s", strerror(errno));
