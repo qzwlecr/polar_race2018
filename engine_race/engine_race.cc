@@ -56,8 +56,7 @@ namespace polar_race {
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     MailBox requestfds[UDS_NUM];
-    Accumulator requestId[CPU_NUMBER];
-    std::atomic_bool is_usable[HANDLER_THREADS];
+    Accumulator requestId(0);
     Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
@@ -128,10 +127,6 @@ namespace polar_race {
         newaff = 0;
         for (int i = 0; i < HANDLER_THREADS; i++) {
             handtps[i] = {0};
-            is_usable[i] = false;
-        }
-        for (int i = 0; i < CPU_NUMBER; i++) {
-            requestId[i] = 0;
         }
         if (SELFCLOSER_ENABLED) {
             qLogSuccfmt("Startup: Starting SelfCloser, sanity time %d", SANITY_EXEC_TIME);
@@ -309,34 +304,24 @@ namespace polar_race {
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
-        bool request_bool = false;
-        int currcpu = curraff / (CONCURRENT_QUERY/CPU_NUMBER);
-        for(;;){
-            for (int id = currcpu * (HANDLER_THREADS/CPU_NUMBER); id < (currcpu+1)*(HANDLER_THREADS/CPU_NUMBER); ++id) {
-                request_bool = false;
-                if(is_usable[id].compare_exchange_strong(request_bool, true)){
-                    ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
-                                                             &(rsaddr[id]));
-                    if (sv == -1) {
-                        return kIOError;
-                    }
-                    struct sockaddr_un useless;
-                    ssize_t rv = requestfds[curraff].getOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-                    if (rv != sizeof(RequestResponse)) {
-                        qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
-                        return kIOError;
-                    }
-                    is_usable[id] = false;
-                    if (rr.type != RequestType::TYPE_OK) {
-                        return kNotFound;
-                    }
-                    qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
-                                 KVArrayDump(rr.value, 8).c_str());
-                    *value = std::string(rr.value, VAL_SIZE);
-                    return kSucc;
-                }
-            }
+        ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
+                                                 &(rsaddr[curraff/2]));
+        if (sv == -1) {
+            return kIOError;
         }
+        struct sockaddr_un useless;
+        ssize_t rv = requestfds[curraff].getOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        if (rv != sizeof(RequestResponse)) {
+            qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
+            return kIOError;
+        }
+        if (rr.type != RequestType::TYPE_OK) {
+            return kNotFound;
+        }
+        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
+                     KVArrayDump(rr.value, 8).c_str());
+        *value = std::string(rr.value, VAL_SIZE);
+        return kSucc;
     }
 
 /*
