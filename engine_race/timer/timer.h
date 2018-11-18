@@ -31,9 +31,8 @@ struct TimingProfile {
     uint64_t index_put;
     uint64_t index_get;
     uint64_t write_disk;
-    uint64_t waiting_write_disk;
+    uint64_t spin_commit;
     uint64_t read_disk;
-    uint64_t waiting_read_disk;
     TimingDistribution rddsk;
 };
 
