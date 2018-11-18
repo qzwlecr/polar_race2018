@@ -266,6 +266,9 @@ namespace polar_race {
         qLogDebugfmt("Engine::Write: affinity %d", curraff);
         if (curraff == CONCURRENT_QUERY) {
             int newaffinity = (int) (newaff.fetch_add(1) % CONCURRENT_QUERY);
+            if(newaffinity == CONCURRENT_QUERY - 1){
+                newaffinity --;
+            }
             sys_setaff(0, newaffinity);
             qLogInfofmt("Engine::Write new affinity %d", newaffinity);
             curraff = newaffinity;

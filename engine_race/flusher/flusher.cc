@@ -7,6 +7,8 @@
 
 extern "C" {
 #include <malloc.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 }
 
 namespace polar_race {
@@ -15,6 +17,15 @@ namespace polar_race {
     volatile bool *CommitCompletionQueue;
     volatile uint64_t WrittenIndex = 0;
     char *InternalBuffer;
+
+    struct sembuf sem_buf_up{
+            .sem_num = 0,
+            .sem_op = 1
+    };
+    struct sembuf sem_buf_down{
+            .sem_num = 0,
+            .sem_op = -1
+    };
 
     Flusher::Flusher() {
         size_t pagesize = (size_t) getpagesize();
@@ -32,6 +43,24 @@ namespace polar_race {
     }
 
     void Flusher::flush_begin() {
+        flush_start = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
+        if (flush_start == -1) {
+            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+            abort();
+        }
+        if (semctl(flush_start, 0, SETVAL, 0) == -1) {
+            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+            abort();
+        }
+        flush_end = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
+        if (flush_end == -1) {
+            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+            abort();
+        }
+        if (semctl(flush_end, 0, SETVAL, 0) == -1) {
+            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+            abort();
+        }
         thread flush_reader(&Flusher::read, this);
         flush_reader.detach();
         thread flush_executor(&Flusher::flush, this);
@@ -40,6 +69,14 @@ namespace polar_race {
     }
 
     void *Flusher::read() {
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        CPU_SET(CONCURRENT_QUERY - 1, &set);
+        //dirty hard code
+        if (sched_setaffinity(0, sizeof(set), &set) == -1) {
+            qLogFailfmt("RequestProcessor sched set affinity failed: %s", strerror(errno));
+            abort();
+        }
         for (uint64_t index = (WrittenIndex / VAL_SIZE) % COMMIT_QUEUE_LENGTH;; index++) {
             if (index == COMMIT_QUEUE_LENGTH)
                 index = 0;
@@ -47,14 +84,16 @@ namespace polar_race {
             while (CommitCompletionQueue[index] == 0) {
                 if (UNLIKELY(ExitSign)) {
                     last_flush = true;
+                    semop(flush_start, &sem_buf_up, 1);
                     return nullptr;
                 }
             }
+
             if (internal_buffer_index == (INTERNAL_BUFFER_LENGTH / 2 / VAL_SIZE) ||
                 internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
-                flushing = true;
+                semop(flush_start, &sem_buf_up, 1);
+                semop(flush_end, &sem_buf_down, 1);
             }
-            while (flushing);
             memcpy(InternalBuffer + internal_buffer_index * VAL_SIZE,
                    CommitQueue + index * VAL_SIZE,
                    VAL_SIZE);
@@ -73,7 +112,7 @@ namespace polar_race {
         }
         qLogDebugfmt("Flusher: File Descripter=[%d]", fd);
         while (1) {
-            while (!flushing && UNLIKELY(!ExitSign));
+            semop(flush_start, &sem_buf_down, 1);
             qLogDebug("Flusher: Ready to flush to disk");
             if (UNLIKELY(ExitSign)) {
                 while (!last_flush);
@@ -103,13 +142,13 @@ namespace polar_race {
             }
             if (internal_buffer_index == INTERNAL_BUFFER_LENGTH / VAL_SIZE) {
                 internal_buffer_index = 0;
-                flushing = false;
+                semop(flush_end, &sem_buf_up, 1);
                 qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", INTERNAL_BUFFER_LENGTH / 2,
                              INTERNAL_BUFFER_LENGTH, internal_buffer_index);
                 write(fd, InternalBuffer + (INTERNAL_BUFFER_LENGTH / 2),
                       INTERNAL_BUFFER_LENGTH / 2);
             } else {
-                flushing = false;
+                semop(flush_end, &sem_buf_up, 1);
                 qLogDebugfmt("Flusher: flush from %lu to %lu, with index %lu", 0lu, INTERNAL_BUFFER_LENGTH / 2,
                              internal_buffer_index);
                 write(fd, InternalBuffer, INTERNAL_BUFFER_LENGTH / 2);
