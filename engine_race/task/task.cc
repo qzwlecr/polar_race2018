@@ -128,10 +128,10 @@ namespace polar_race {
             qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
             abort();
         }
-        if (posix_fadvise64(valuesfd, 0, 0, POSIX_FADV_RANDOM) == -1) {
-            qLogFailfmt("RequestProcessor: Cannot advise file usage pattern: %s", strerror(errno));
-            abort();
-        }
+//        if (posix_fadvise64(valuesfd, 0, 0, POSIX_FADV_RANDOM) == -1) {
+//            qLogFailfmt("RequestProcessor: Cannot advise file usage pattern: %s", strerror(errno));
+//            abort();
+//        }
         struct timespec t = {0};
         while (true) {
             StartTimer(&t);
