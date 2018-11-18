@@ -22,7 +22,7 @@ namespace polar_race {
     const std::string INDECIES_PATH_SUFFIX = "/ralopdb_index.dat";
     extern std::string VALUES_PATH;
     extern std::string INDECIES_PATH;
-    const int UDS_CONGEST_AMPLIFIER = 1;
+    const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;
     const bool SELFCLOSER_ENABLED = false;

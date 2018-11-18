@@ -55,6 +55,7 @@ namespace polar_race {
     std::string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
+    std::atomic_bool reqfds_occupy[UDS_NUM];
     MailBox requestfds[UDS_NUM];
     Accumulator requestId(0);
     Flusher *flusher;
@@ -124,6 +125,7 @@ namespace polar_race {
         }
         qLogInfo("Startup: resetting Global Variables");
         running = true;
+        requestId = 0;
         newaff = 0;
         for (int i = 0; i < HANDLER_THREADS; i++) {
             handtps[i] = {0};
@@ -146,6 +148,7 @@ namespace polar_race {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }
+            reqfds_occupy[i]=false;
         }
         qLogInfo("Startup: FORK !");
         if (fork()) {
@@ -289,28 +292,28 @@ namespace polar_race {
 
 // 4. Read value of a key
     RetCode EngineRace::Read(const PolarString &key, std::string *value) {
-        int curraff = CONCURRENT_QUERY;
-        int gav = sys_getaff(0, &curraff);
-        if (gav == -1) {
-            qLogWarnfmt("Engine::Read get affinity failed: %s", strerror(errno));
-        }
-        qLogDebugfmt("Engine::Read: affinity %d", curraff);
-        if (curraff == CONCURRENT_QUERY) {
-            int newaffinity = (int) (newaff.fetch_add(1) % CONCURRENT_QUERY);
-            sys_setaff(0, newaffinity);
-            qLogInfofmt("Engine::Read new affinity %d", newaffinity);
-            curraff = newaffinity;
-        }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         rr.type = RequestType::TYPE_RD;
-        ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
-                                                 &(rsaddr[curraff/2]));
+        // Acquire an Mailbox
+        uint64_t reqIdx = 0;
+        bool fk = false;
+        do {
+            reqIdx = requestId.fetch_add(1);
+            fk = false;
+        } while (!reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true));
+        qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
+        // then OK, we do writing work
+        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
         if (sv == -1) {
+            reqfds_occupy[reqIdx % UDS_NUM] = false;
             return kIOError;
         }
         struct sockaddr_un useless;
-        ssize_t rv = requestfds[curraff].getOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
+                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
+        reqfds_occupy[reqIdx % UDS_NUM] = false;
         if (rv != sizeof(RequestResponse)) {
             qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
             return kIOError;
