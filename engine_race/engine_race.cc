@@ -11,6 +11,7 @@
 #include "flusher/flusher.h"
 #include "index/index.h"
 #include "syscalls/sys.h"
+#include "perf/perf.h"
 
 
 extern "C"{
@@ -81,6 +82,13 @@ namespace polar_race {
         EngineRace *engine_race = new EngineRace(name);
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
+        if(EXEC_MODE_BENCHMARK){
+            qLogSuccfmt("Startup: Bencher %s", name.c_str());
+            if (access(name.c_str(), F_OK)) {
+                mkdir(name.c_str(), 0755);
+            }
+            BenchMain(name);
+        }
         qLogSuccfmt("Startup: EngineName %s", name.c_str());
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if (access(VALUES_PATH.c_str(), R_OK | W_OK)) {

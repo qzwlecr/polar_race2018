@@ -28,6 +28,7 @@ namespace polar_race {
     const bool SELFCLOSER_ENABLED = false;
     const int SANITY_EXEC_TIME = 600;
     extern TimingProfile handtps[HANDLER_THREADS];
+    const bool EXEC_MODE_BENCHMARK = false;
 };
 
 #if defined(__GNUC__)
