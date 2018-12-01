@@ -1,4 +1,6 @@
 #!/bin/bash
-make
+echo Building engine library (libengine.a)
+make 2>&1
 cd test
-make
+echo Building test program (linking)
+make 2>&1
