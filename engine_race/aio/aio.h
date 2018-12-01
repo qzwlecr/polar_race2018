@@ -4,7 +4,7 @@
 #include "../syscalls/sys.h"
 #include <cstdint>
 
-namespace engine_race {
+namespace polar_race {
 
     class AIOQuest {
         protected:
