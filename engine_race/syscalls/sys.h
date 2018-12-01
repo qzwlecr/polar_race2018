@@ -8,7 +8,7 @@
 extern "C" {
 #include <sched.h>
 #include <linux/aio_abi.h>
-#include <linux/time.h>
+#include <sys/time.h>
 };
 
 namespace polar_race{
