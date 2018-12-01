@@ -49,7 +49,7 @@ namespace polar_race {
     uint64_t bench_concurrent_run(void (*thexecutor)(int myid, int fd), int fd, int concurrency){
         vector<thread*> thrds;
         for(int i = 0; i < concurrency; i++){
-            thrds.push_back(new thread(bench_concurrent_worker, i, fd));
+//            thrds.push_back(new thread(bench_concurrent_worker, i, fd));
         }
         for(auto &x: thrds){
             x->join();

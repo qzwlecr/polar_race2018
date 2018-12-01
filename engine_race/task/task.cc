@@ -2,6 +2,8 @@
 #include "../format/log.h"
 #include "../index/index.h"
 #include "../flusher/flusher.h"
+#include "bucket/bucket_link_list.h"
+#include "bucket/bucket.h"
 
 extern "C"{
 #include <fcntl.h>
@@ -21,8 +23,6 @@ namespace polar_race {
     volatile bool ExitSign = false;
 
     const uint32_t HB_MAGIC = 0x8088;
-
-    Accumulator NextIndex(0);
 
     void SelfCloser(int timeout, bool *running) {
         int timed = 0;

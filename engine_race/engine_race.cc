@@ -12,6 +12,8 @@
 #include "index/index.h"
 #include "syscalls/sys.h"
 #include "perf/perf.h"
+#include "bucket/bucket.h"
+#include "bucket/bucket_link_list.h"
 
 
 extern "C"{
@@ -52,6 +54,7 @@ namespace polar_race {
 
     std::string VALUES_PATH;
     std::string INDECIES_PATH;
+    std::string META_PATH;
 
     std::string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
@@ -82,6 +85,7 @@ namespace polar_race {
         EngineRace *engine_race = new EngineRace(name);
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
+        META_PATH = name + META_PATH_SUFFIX;
         if(EXEC_MODE_BENCHMARK){
             qLogSuccfmt("Startup: Bencher %s", name.c_str());
             if (access(name.c_str(), F_OK)) {
@@ -216,8 +220,9 @@ namespace polar_race {
                 std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
                 handthrd.detach();
             }
-            qLogSucc("RequestHandler: starting Disk Operation thread..");
-            flusher->flush_begin();
+//            qLogSucc("RequestHandler: starting Disk Operation thread..");
+//            flusher->flush_begin();
+            FlushFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());

@@ -2,7 +2,7 @@
 #define ENGINE_RACE_INDEX_INDEX_H
 
 #include <cstdint>
-#include <index/hashmap.h>
+#include "index/hashmap.hpp"
 
 namespace polar_race {
     class IndexStore {
