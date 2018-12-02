@@ -55,6 +55,7 @@ namespace polar_race {
     std::string VALUES_PATH;
     std::string INDECIES_PATH;
     std::string META_PATH;
+    std::string OFFSET_TABLE_PATH;
 
     std::string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
@@ -85,6 +86,7 @@ namespace polar_race {
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
         META_PATH = name + META_PATH_SUFFIX;
+        OFFSET_TABLE_PATH = name + OFFSET_TABLE_PATH_SUFFIX;
         if (EXEC_MODE_BENCHMARK) {
             qLogSuccfmt("Startup: Bencher %s", name.c_str());
             if (access(name.c_str(), F_OK)) {
@@ -133,7 +135,7 @@ namespace polar_race {
         }
         ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
 
-        if(posix_fallocate(ValuesFd, 0, FILE_SIZE)){
+        if (posix_fallocate(ValuesFd, 0, FILE_SIZE)) {
             qLogFailfmt("Startup: Fallocate file failed: %s", strerror(errno));
             abort();
         }
@@ -227,6 +229,10 @@ namespace polar_race {
             }
             for (int i = 0; i < BUCKET_NUMBER; i++) {
                 Buckets[i] = new Bucket(i);
+            }
+            size_t pagesize = (size_t) getpagesize();
+            for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
+                BackupBuffer[i] = (char *) memalign(pagesize, BUCKET_BUFFER_LENGTH);
             }
             BucketThreadPool = new thread_pool(WRITE_CONCURRENCY);
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);

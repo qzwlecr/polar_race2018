@@ -318,6 +318,11 @@ namespace polar_race {
                 assert(state() != EMPTY);
                 return *static_cast<const value_type *>(static_cast<const void *>(&raw_));
             }
+
+            bool operator < (const Slot & another) {
+                int answer = memcmp(&(this->raw_.first), &(another.raw_.first), 8);
+                return answer >= 0;
+            }
         };
 
         size_t mmapRequested_;
@@ -372,11 +377,11 @@ namespace polar_race {
     };
 
 
-    template<typename T, template<typename> class Atom = std::atomic>
+    template<typename T>
     struct MutableAtom {
-        mutable Atom<T> data;
+        mutable T data;
 
-        explicit MutableAtom(const T &init) : data(init) {}
+        MutableAtom(T init) : data(init) {}
     };
 
 }

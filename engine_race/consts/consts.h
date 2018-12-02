@@ -15,7 +15,7 @@ namespace polar_race {
     const std::size_t VAL_SIZE = 4096;
     const int CONCURRENT_QUERY = 64;
     const int HANDLER_THREADS = 32;
-    const float LOAD_FACTOR = 0.8f;
+    const float LOAD_FACTOR = 0.9f;
     const std::size_t HASH_MAP_SIZE = 64000000;
     const int BUCKET_NUMBER = 512;
     const int BUCKET_BUFFER_LENGTH = 128 * 4096;
@@ -32,6 +32,7 @@ namespace polar_race {
     extern std::string VALUES_PATH;
     extern std::string INDECIES_PATH;
     extern std::string META_PATH;
+    extern std::string OFFSET_TABLE_PATH;
     const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;

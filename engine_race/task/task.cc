@@ -3,6 +3,7 @@
 #include "../index/index.h"
 #include "bucket/bucket_link_list.h"
 #include "bucket/bucket.h"
+#include <algorithm>
 
 extern "C" {
 #include <fcntl.h>
@@ -17,7 +18,6 @@ namespace polar_race {
 
 #define STRERR (strerror(errno))
 #define LDOMAIN(x) ((x) + 1)
-#define LARRAY_ACCESS(larr, offset, wrap) ((larr) + ((offset) % (wrap)))
 
     volatile bool ExitSign = false;
 
@@ -89,6 +89,12 @@ namespace polar_race {
                 ExitSign = true;
                 // do clean work
                 delete BucketThreadPool;
+                for (int i = 0; i < BUCKET_NUMBER; i++) {
+                    delete Buckets[i];
+                }
+                for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
+                    delete BackupBuffer[i];
+                }
                 uint64_t file_size = NextIndex.load();
                 int meta_fd = open(META_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
                 write(meta_fd, &file_size, sizeof(uint64_t));
@@ -103,11 +109,20 @@ namespace polar_race {
                 close(index_fd);
                 close(meta_fd);
                 flock(lockfd, LOCK_UN);
+                std::sort(GlobalIndexStore->hashmap.slots_, GlobalIndexStore->hashmap.slots_+GlobalIndexStore->hashmap.numSlots_);
+                uint32_t* sorted_offset = (uint32_t *)malloc(HASH_MAP_SIZE * sizeof(uint32_t));
+                int index = 0;
+                for(auto iter = GlobalIndexStore->hashmap.cbegin(); iter != GlobalIndexStore->hashmap.cend(); iter ++){
+                    sorted_offset[index++] = (*iter).second.data;
+                }
+                int offset_fd = open(OFFSET_TABLE_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                write(offset_fd, sorted_offset, HASH_MAP_SIZE * sizeof(uint32_t));
+                close(offset_fd);
                 qLogSucc("Flusher unlocked filelock");
                 BucketLinkList::persist(MetaFd);
                 mp.close();
                 hbcmb.close();
-                return;
+                exit(0);
             }
             // not very ok exactly..
             int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);

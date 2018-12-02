@@ -10,12 +10,12 @@ namespace polar_race {
     bool IndexStore::put(uint64_t key, uint64_t offset) {
 
         auto ret = hashmap.findOrConstruct(key, [&](void *raw) {
-            new(raw) MutableAtom<uint64_t>(offset);
+            new(raw) MutableAtom<uint32_t>(uint32_t(offset / VAL_SIZE));
         });
 
         qLogDebugfmt("IndexStore: put %lu into %lu", offset, key);
         if (UNLIKELY(!ret.second)) {
-            (*(ret.first)).second.data.store(offset);
+            (*(ret.first)).second.data = (uint32_t) (offset / VAL_SIZE);
         }
         return true;
     }
@@ -25,7 +25,7 @@ namespace polar_race {
         if (UNLIKELY(ret == 0)) {
             return false;
         } else {
-            offset = hashmap.slots_[ret].keyValue().second.data.load();
+            offset = hashmap.slots_[ret].keyValue().second.data * VAL_SIZE;
             qLogDebugfmt("IndexStore: get %lu from %lu", offset, key);
             return true;
         }
