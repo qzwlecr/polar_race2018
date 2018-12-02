@@ -14,6 +14,7 @@
 #include "perf/perf.h"
 #include "bucket/bucket.h"
 #include "bucket/bucket_link_list.h"
+#include <thread>
 
 
 extern "C"{
@@ -353,6 +354,11 @@ namespace polar_race {
 //   Range("", "", visitor)
     RetCode EngineRace::Range(const PolarString &lower, const PolarString &upper,
                               Visitor &visitor) {
+       /* TODO: what should we do?
+        * according to discussion, this part will work like:
+        * 1. Tell the backend to close, and re-acquire the file lock.
+        * 2. unper
+        */
         return kNotSupported;
     }
 

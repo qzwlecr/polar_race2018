@@ -27,6 +27,7 @@ namespace polar_race {
     const std::string VALUES_PATH_SUFFIX = "/ralopdb.dat";
     const std::string INDECIES_PATH_SUFFIX = "/ralopdb_index.dat";
     const std::string META_PATH_SUFFIX = "/ralopdb_meta.dat";
+    const std::string OFFSET_TABLE_PATH_SUFFIX = "/ralopdb_offsets.dat";
     extern std::string VALUES_PATH;
     extern std::string INDECIES_PATH;
     extern std::string META_PATH;
