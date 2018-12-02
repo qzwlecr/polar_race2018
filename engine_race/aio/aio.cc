@@ -1,5 +1,6 @@
 #include "aio.h"
 #include "../syscalls/sys.h"
+#include <cstdlib>
 
 namespace polar_race {
 
