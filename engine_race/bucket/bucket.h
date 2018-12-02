@@ -21,6 +21,8 @@ namespace polar_race {
 
         uint64_t head_index;
 
+        ~Bucket();
+
     private:
 
         std::atomic<uint64_t> next_index;
@@ -31,12 +33,11 @@ namespace polar_race {
 
     };
 
-    void flushBuffer(char * buffer, int should_done);
+    void flushBuffer(uint64_t index,  char * buffer, int should_done);
 
 
     extern Bucket *Buckets[BUCKET_NUMBER];
     extern thread_pool *BucketThreadPool;
-    extern int FlushFd;
     extern char *BackupBuffer[BUCKET_BACKUP_NUMBER];
     extern std::atomic_bool BackupBufferU[BUCKET_BACKUP_NUMBER];
     extern std::atomic<uint8_t> BackupCount;

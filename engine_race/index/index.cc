@@ -40,40 +40,10 @@ namespace polar_race {
 
     void IndexStore::persist(int fd) {
         write(fd, hashmap.slots_, hashmap.allocator_.computeSize(hashmap.mmapRequested_));
-//        uint64_t index = 0;
-//        char store[BUFFER_SIZE];
-//        uint64_t key, value;
-//        for (auto iter = hashmap.cbegin(); iter != hashmap.cend(); iter++) {
-//            key = (*iter).first, value = (*iter).second.data.load();
-//            if (index == BUFFER_SIZE) {
-//                write(fd, store, BUFFER_SIZE);
-//                index = 0;
-//            }
-//            memcpy(store + index, &key, 8);
-//            index += 8;
-//            memcpy(store + index, &value, 8);
-//            index += 8;
-//        }
-//        if (index != 0) {
-//            write(fd, store, index);
-//        }
         return;
     }
 
     void IndexStore::unpersist(int fd) {
-//        char store[BUFFER_SIZE];
-//        uint64_t key, value;
-//        ssize_t ret = 0;
-//        while ((ret = read(fd, store, BUFFER_SIZE)) > 0) {
-//            for (auto index = 0; index < ret;) {
-//                memcpy(&key, store + index, 8);
-//                index += 8;
-//                memcpy(&value, store + index, 8);
-//                index += 8;
-//                this->put(key, value);
-//            }
-//        }
-//        assert(ret > 0);
         read(fd, hashmap.slots_, hashmap.allocator_.computeSize(hashmap.mmapRequested_));
         return;
     }

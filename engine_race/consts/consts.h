@@ -10,6 +10,7 @@ namespace polar_race {
         MODE_MPROC_SEQ_WR = 0,
         MODE_MPROC_RAND_WR
     };
+    const std::size_t FILE_SIZE = 300ul * 1024 * 1024 * 1024;
     const std::size_t KEY_SIZE = 8;
     const std::size_t VAL_SIZE = 4096;
     const int CONCURRENT_QUERY = 64;

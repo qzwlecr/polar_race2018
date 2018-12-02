@@ -1,11 +1,10 @@
 #include "task.h"
 #include "../format/log.h"
 #include "../index/index.h"
-#include "../flusher/flusher.h"
 #include "bucket/bucket_link_list.h"
 #include "bucket/bucket.h"
 
-extern "C"{
+extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/file.h>
@@ -87,9 +86,25 @@ namespace polar_race {
             }
             if (UNLIKELY(rv == 0)) {
                 qLogFail("HeartBeatChecker: Timed out.");
-                // timed out!
                 ExitSign = true;
                 // do clean work
+                delete BucketThreadPool;
+                uint64_t file_size = NextIndex.load();
+                int meta_fd = open(META_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                write(meta_fd, &file_size, sizeof(uint64_t));
+                BucketLinkList::persist(meta_fd);
+                int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                GlobalIndexStore->persist(index_fd);
+                for (int i = 0; i < HANDLER_THREADS; i++) {
+                    std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
+                    PrintTiming(handtps[i]);
+                    std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
+                }
+                close(index_fd);
+                close(meta_fd);
+                flock(lockfd, LOCK_UN);
+                qLogSucc("Flusher unlocked filelock");
+                BucketLinkList::persist(MetaFd);
                 mp.close();
                 hbcmb.close();
                 return;
@@ -152,41 +167,15 @@ namespace polar_race {
                     StartTimer(&t);
                     int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                     tp->uds_wr += GetTimeElapsed(&t);
-                    if (sv == -1) {
+                    if (UNLIKELY(sv == -1)) {
                         qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
                         abort();
                     }
                 } else {
                     tp->index_get += GetTimeElapsed(&t);
-                    qLogInfofmt("RequestProcessor[%s]: file_offset %lu, WrittenIdx %lu !", LDOMAIN(recvaddr.c_str()),
-                                file_offset, WrittenIndex);
-                    // check WrittenIndex against expectedIndex
-                    if (file_offset >= WrittenIndex) {
-                        // read from internal buffer
-                        memcpy(rr->value, LARRAY_ACCESS(InternalBuffer, file_offset, INTERNAL_BUFFER_LENGTH), VAL_SIZE);
-                        qLogDebugfmt("RequestProcessor[%s]: rr.value %s !", LDOMAIN(recvaddr.c_str()),
-                                     KVArrayDump(rr->value, 2).c_str());
-                        // check WrittenIndex again
-                        if (file_offset >= WrittenIndex) {
-                            // then we should return it
-                            qLogDebugfmt("RequestProcessor[%s]: Value found on InternalBuffer",
-                                         LDOMAIN(recvaddr.c_str()));
-                            rr->type = RequestType::TYPE_OK;
-                            StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                            tp->uds_wr += GetTimeElapsed(&t);
-                            if (sv == -1) {
-                                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
-                                            STRERR);
-                                abort();
-                            }
-                            qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
-                            continue;
-                        }
-                    }
                     // that means we should read it from file
                     int seekv = lseek(valuesfd, file_offset, SEEK_SET);
-                    if (seekv == -1) {
+                    if (UNLIKELY(seekv == -1)) {
                         qLogWarnfmt("RequestProcessor[%s]: lseek failed: %s, treated as NOT FOUND.",
                                     LDOMAIN(recvaddr.c_str()), STRERR);
                         qLogWarnfmt(
@@ -198,7 +187,7 @@ namespace polar_race {
                         StartTimer(&t);
                         int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                         tp->uds_wr += GetTimeElapsed(&t);
-                        if (sv == -1) {
+                        if (UNLIKELY(sv == -1)) {
                             qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                         STRERR);
                             abort();
@@ -223,7 +212,7 @@ namespace polar_race {
                             StartTimer(&t);
                             int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
                             tp->uds_wr += GetTimeElapsed(&t);
-                            if (sv == -1) {
+                            if (UNLIKELY(sv == -1)) {
                                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
                                             STRERR);
                                 abort();
@@ -248,7 +237,7 @@ namespace polar_race {
                 }
                 qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
             } else {
-                if(UNLIKELY(!attached)){
+                if (UNLIKELY(!attached)) {
                     cpu_set_t set;
                     CPU_ZERO(&set);
                     CPU_SET(own_id * 2, &set);
@@ -262,27 +251,15 @@ namespace polar_race {
                 qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
                 qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                              *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
-                // get New Index
-                uint64_t file_offset = polar_race::NextIndex.fetch_add(VAL_SIZE);
+                uint64_t file_offset;
                 // put into GlobIdx
+                StartTimer(&t);
+                Buckets[*reinterpret_cast<uint64_t *>(rr->key)]->put(file_offset, rr->value);
+                tp->spin_commit += GetTimeElapsed(&t);
                 StartTimer(&t);
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
                 tp->index_put += GetTimeElapsed(&t);
                 qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
-                // flush into CommitQueue
-                memcpy(LARRAY_ACCESS(CommitQueue, file_offset, COMMIT_QUEUE_LENGTH * VAL_SIZE),
-                       rr->value, VAL_SIZE);
-                // set CanCommit
-                *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH) = true;
-                qLogDebugfmt("RequestProcessor[%s]: CommitCompletionQueue state SET (now %d).",
-                             LDOMAIN(recvaddr.c_str()),
-                             *LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
-                // flush OK.
-                // wait it gets flush'd
-                StartTimer(&t);
-                while (*LARRAY_ACCESS(CommitCompletionQueue, file_offset / VAL_SIZE, COMMIT_QUEUE_LENGTH));
-                tp->spin_commit += GetTimeElapsed(&t);
                 // generate return information.
                 qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
                 rr->type = RequestType::TYPE_OK;

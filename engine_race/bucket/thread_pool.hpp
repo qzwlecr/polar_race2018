@@ -1,6 +1,8 @@
 #ifndef ENGINE_THREAD_POOL_H
 #define ENGINE_THREAD_POOL_H
 
+#pragma once
+
 #include <atomic>
 #include <thread>
 #include <condition_variable>

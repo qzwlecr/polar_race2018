@@ -16,13 +16,11 @@ namespace polar_race {
     char *BackupBuffer[BUCKET_BACKUP_NUMBER];
     std::atomic_bool BackupBufferU[BUCKET_BACKUP_NUMBER];
     std::atomic<uint8_t> BackupCount;
-    int FlushFd;
     thread_pool *BucketThreadPool;
 
     Bucket::Bucket(int id) : id(id) {
         size_t pagesize = (size_t) getpagesize();
         buffer = (char *) memalign(pagesize, BUCKET_BUFFER_LENGTH);
-
         return;
     }
 
@@ -35,7 +33,7 @@ namespace polar_race {
                 num = BackupCount.fetch_add(1);
                 desired = false;
             } while (!BackupBufferU[num % BUCKET_BACKUP_NUMBER].compare_exchange_weak(desired, true));
-            BucketThreadPool->execute(std::bind(flushBuffer, buffer, num));
+            BucketThreadPool->execute(std::bind(flushBuffer, head_index, buffer, num));
             std::swap(buffer, BackupBuffer[num % BUCKET_BACKUP_NUMBER]);
             index = BucketLinkLists[id]->get(head_index);
         }
@@ -43,8 +41,12 @@ namespace polar_race {
         location = index;
     }
 
-    void flushBuffer(char *buffer, int should_done) {
-        write(FlushFd, buffer, BUCKET_BUFFER_LENGTH);
+    Bucket::~Bucket() {
+        free(buffer);
+    }
+
+    void flushBuffer(uint64_t index, char *buffer, int should_done) {
+        pwrite(ValuesFd, buffer, BUCKET_BUFFER_LENGTH, index);
         BackupBufferU[should_done] = false;
     }
 

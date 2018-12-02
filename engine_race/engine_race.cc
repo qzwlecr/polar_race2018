@@ -8,7 +8,6 @@
 #include "consts/consts.h"
 #include "task/task.h"
 #include "format/log.h"
-#include "flusher/flusher.h"
 #include "index/index.h"
 #include "syscalls/sys.h"
 #include "perf/perf.h"
@@ -17,7 +16,7 @@
 #include <thread>
 
 
-extern "C"{
+extern "C" {
 #include <malloc.h>
 #include <unistd.h>
 #include "signames.h"
@@ -63,7 +62,6 @@ namespace polar_race {
     std::atomic_bool reqfds_occupy[UDS_NUM];
     MailBox requestfds[UDS_NUM];
     Accumulator requestId(0);
-    Flusher *flusher;
     bool running = true;
     volatile int lockfd = -1;
     std::thread *selfclsr = nullptr;
@@ -87,7 +85,7 @@ namespace polar_race {
         VALUES_PATH = name + VALUES_PATH_SUFFIX;
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
         META_PATH = name + META_PATH_SUFFIX;
-        if(EXEC_MODE_BENCHMARK){
+        if (EXEC_MODE_BENCHMARK) {
             qLogSuccfmt("Startup: Bencher %s", name.c_str());
             if (access(name.c_str(), F_OK)) {
                 mkdir(name.c_str(), 0755);
@@ -116,15 +114,28 @@ namespace polar_race {
                 qLogFailfmt("Startup: Acquiring file lock failed: %s", strerror(errno));
                 abort();
             }
-            struct stat valfstat = {0};
-            int sv = stat(VALUES_PATH.c_str(), &valfstat);
-            if (sv != 0) {
-                qLogFailfmt("Startup: Values file exist, but unable to get its size: %s", strerror(errno));
+        }
+        for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+            BucketLinkLists[i] = new BucketLinkList(i);
+        }
+        if (access(META_PATH.c_str(), R_OK | W_OK)) {
+            MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
+            NextIndex = 0;
+        } else {
+            MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
+            uint64_t data_size = 0;
+            if (read(MetaFd, &data_size, sizeof(uint64_t)) == -1) {
+                qLogFailfmt("Startup: Read file size failed: %s", strerror(errno));
                 abort();
             }
-            qLogSuccfmt("Startup: Set file size to %lu", valfstat.st_size);
-            WrittenIndex = valfstat.st_size;
-            NextIndex = valfstat.st_size;
+            NextIndex = data_size;
+            BucketLinkList::unpersist(MetaFd);
+        }
+        ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
+
+        if(posix_fallocate(ValuesFd, 0, FILE_SIZE)){
+            qLogFailfmt("Startup: Fallocate file failed: %s", strerror(errno));
+            abort();
         }
 
         int sem = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
@@ -161,7 +172,7 @@ namespace polar_race {
                 qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
                 abort();
             }
-            reqfds_occupy[i]=false;
+            reqfds_occupy[i] = false;
         }
         qLogInfo("Startup: FORK !");
         if (fork()) {
@@ -214,16 +225,16 @@ namespace polar_race {
                     qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
                 }
             }
-            flusher = new Flusher();
+            for (int i = 0; i < BUCKET_NUMBER; i++) {
+                Buckets[i] = new Bucket(i);
+            }
+            BucketThreadPool = new thread_pool(WRITE_CONCURRENCY);
             qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 qLogInfofmt("RequestHander: Starting Handler thread %d", i);
                 std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
                 handthrd.detach();
             }
-//            qLogSucc("RequestHandler: starting Disk Operation thread..");
-//            flusher->flush_begin();
-            FlushFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
             qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
             GlobalIndexStore = new IndexStore();
             qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
@@ -289,7 +300,7 @@ namespace polar_race {
         memcpy(rr.value, value.data(), VAL_SIZE);
         rr.type = RequestType::TYPE_WR;
         ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
-                                                 &(rsaddr[curraff/2]));
+                                                 &(rsaddr[curraff / 2]));
         if (sv == -1) {
             return kIOError;
         }

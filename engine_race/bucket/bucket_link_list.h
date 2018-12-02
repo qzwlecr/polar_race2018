@@ -10,17 +10,16 @@
 #include <atomic>
 
 namespace polar_race {
-    extern std::atomic<uint64_t> NextIndex;
 
     class BucketLinkList {
     public:
         int id;
-        size_t size;
         std::vector<uint64_t> links;
+        std::vector<uint64_t> sizes;
 
-        BucketLinkList() : size(0), links() {}
+        BucketLinkList() : links(), sizes() { sizes.push_back(0), links.push_back(0); }
 
-        BucketLinkList(int id) : id(id), size(0), links() {}
+        BucketLinkList(int id) : id(id), links(), sizes() { sizes.push_back(0), links.push_back(0); }
 
         uint64_t get(uint64_t head); // get next slice head in this linked bucket
 
@@ -30,7 +29,10 @@ namespace polar_race {
 
     };
 
-    extern BucketLinkList* BucketLinkLists[BUCKET_NUMBER];
+    extern BucketLinkList *BucketLinkLists[BUCKET_NUMBER];
+    extern std::atomic<uint64_t> NextIndex;
+    extern int ValuesFd;
+    extern int MetaFd;
 
 }
 
