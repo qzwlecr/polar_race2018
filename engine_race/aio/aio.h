@@ -7,9 +7,8 @@
 namespace polar_race {
 
     class AIOQuest {
-        protected:
-            struct iocb;
         public:
+            struct iocb cb;
             AIOQuest(uint16_t iotype, uint32_t srcfd, uintptr_t buffer, uint64_t nbytes, int64_t offset);
     };
 
@@ -28,8 +27,8 @@ namespace polar_race {
             aio_context_t ctx;
         public:
             int setup(unsigned qdepth);
-            int submit(const AIOQuest& quest);
-            int cancel(const AIOQuest& quest, struct io_event* reslt);
+            int submit(AIOQuest& quest);
+            int cancel(AIOQuest& quest, struct io_event* reslt);
             int getevents(int64_t min_evs, int64_t max_evs, struct io_event* events, struct timespec* timeout);
             int destroy();
     };
