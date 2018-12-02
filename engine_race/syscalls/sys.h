@@ -9,6 +9,7 @@ extern "C" {
 #include <sched.h>
 #include <linux/aio_abi.h>
 #include <sys/time.h>
+#include <pthread.h>
 };
 
 namespace polar_race{
@@ -21,6 +22,19 @@ int sys_aio_destroy(aio_context_t ctx);
 int sys_aio_submit(aio_context_t ctx, long nreqs, struct iocb **reqarr);
 int sys_aio_cancel(aio_context_t ctx, struct iocb* req, struct io_event* result);
 int sys_aio_getevents(aio_context_t ctx, long min_nevs, long max_nevs, struct io_event* evs, struct timespec* timeout);
+
+class RWMutex {
+    public:
+    void rdlock();
+    void wrlock();
+    void unlock();
+    RWMutex();
+    RWMutex(const RWMutex& src);
+    RWMutex& operator=(const RWMutex& src);
+    ~RWMutex();
+    private:
+    pthread_rwlock_t lockself;
+};
 
 };
 

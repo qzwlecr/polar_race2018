@@ -367,8 +367,18 @@ namespace polar_race {
                               Visitor &visitor) {
        /* TODO: what should we do?
         * according to discussion, this part will work like:
-        * 1. Tell the backend to close, and re-acquire the file lock.
-        * 2. unper
+        * (OOO: Once and Only Once)
+        * 1. Tell the backend to close, and re-acquire the file lock..
+        * 2. Read the offset hash table into memory OOO, lookup for range borders, and free it.
+        * 3. Read the offset table into memory OOO
+        * 4. Record the loaded cache blocks and corresponding file offset range
+        * 5. On read each offset, check whether it's already loaded
+        * 6. If not, wait until it's loaded.
+        * 7. If access to one cache reached it's possible maximum, remove it from memory.
+        * -----------------------------------------------------
+        * In order to ensure the OOO property, we may need some global variables
+        * to control concurrent requests. What's more, we need a cache object to control
+        * the overall access to file contents. This cache object also need to be created OOO.
         */
         return kNotSupported;
     }

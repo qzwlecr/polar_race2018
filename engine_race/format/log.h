@@ -26,6 +26,8 @@
 #define qLog_TIME_FMT_STR "(%.2d/%.2d/%.4d %.2d:%.2d:%.2d) "
 #endif
 
+extern std::mutex logMu;
+
 #define qLogCurrTime() do{time_t rawtv;struct tm* timerep;\
 time(&rawtv);timerep = localtime(&rawtv);\
 fprintf(stderr,qLog_TIME_FMT_STR,timerep->tm_mon+1,timerep->tm_mday,\
