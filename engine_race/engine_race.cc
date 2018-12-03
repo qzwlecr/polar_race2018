@@ -127,6 +127,11 @@ namespace polar_race {
                 abort();
             }
         }
+        int unlockv = flock(lockfd, LOCK_UN);
+        if (unlockv != 0) {
+            qLogFailfmt("Startup: Release file lock failed: %s", strerror(errno));
+            abort();
+        }
         for (int i = 0; i < BUCKET_NUMBER; i++) {
             BucketLinkLists[i] = new BucketLinkList(i);
         }
@@ -231,6 +236,8 @@ namespace polar_race {
             qLogSucc("Engine:: Waiting SelfCloser exit..");
             selfclsr->join();
         }
+        close(lockfd);
+        lockfd = -1;
     }
 
 // 3. Write a key-value pair into engine
@@ -289,6 +296,11 @@ namespace polar_race {
                     // child
                     qLogInfo("RequestHandler: FORK completed.");
                     prepareSignalDump();
+                    int lockv = flock(lockfd, LOCK_EX);
+                    if(lockv == -1){
+                        qLogFailfmt("RequstHandler: unable to acquire file lock: %s", strerror(errno));
+                        abort();
+                    }
                     for (int i = 0; i < BUCKET_NUMBER; i++) {
                         Buckets[i] = new Bucket(i);
                     }
