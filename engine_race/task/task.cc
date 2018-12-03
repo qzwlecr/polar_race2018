@@ -269,7 +269,7 @@ namespace polar_race {
                 uint64_t file_offset;
                 // put into GlobIdx
                 StartTimer(&t);
-                Buckets[*reinterpret_cast<uint64_t *>(rr->key)]->put(file_offset, rr->value);
+                Buckets[(*reinterpret_cast<uint64_t *>(rr->key))/(UINT64_MAX / BUCKET_NUMBER)]->put(file_offset, rr->value);
                 tp->spin_commit += GetTimeElapsed(&t);
                 StartTimer(&t);
                 GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
