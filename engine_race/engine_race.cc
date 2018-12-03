@@ -117,13 +117,13 @@ namespace polar_race {
                 abort();
             }
         }
-        for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+        for (int i = 0; i < BUCKET_NUMBER; i++) {
             BucketLinkLists[i] = new BucketLinkList(i);
         }
         if (access(META_PATH.c_str(), R_OK | W_OK)) {
             MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
             NextIndex = 0;
-            for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+            for (int i = 0; i < BUCKET_NUMBER; i++) {
                 BucketLinkLists[i]->sizes.push_back(0);
                 auto index = NextIndex.fetch_add(FIRST_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
@@ -137,7 +137,7 @@ namespace polar_race {
             }
             NextIndex = data_size;
             BucketLinkList::unpersist(MetaFd);
-            for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+            for (int i = 0; i < BUCKET_NUMBER; i++) {
                 BucketLinkLists[i]->sizes.push_back(0);
                 auto index = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
@@ -381,21 +381,21 @@ namespace polar_race {
 //   Range("", "", visitor)
     RetCode EngineRace::Range(const PolarString &lower, const PolarString &upper,
                               Visitor &visitor) {
-       /* TODO: what should we do?
-        * according to discussion, this part will work like:
-        * (OOO: Once and Only Once)
-        * 1. Tell the backend to close, and re-acquire the file lock..
-        * 2. Read the offset hash table into memory OOO, lookup for range borders, and free it.
-        * 3. Read the offset table into memory OOO
-        * 4. Record the loaded cache blocks and corresponding file offset range
-        * 5. On read each offset, check whether it's already loaded
-        * 6. If not, wait until it's loaded.
-        * 7. If access to one cache reached it's possible maximum, remove it from memory.
-        * -----------------------------------------------------
-        * In order to ensure the OOO property, we may need some global variables
-        * to control concurrent requests. What's more, we need a cache object to control
-        * the overall access to file contents. This cache object also need to be created OOO.
-        */
+        /* TODO: what should we do?
+         * according to discussion, this part will work like:
+         * (OOO: Once and Only Once)
+         * 1. Tell the backend to close, and re-acquire the file lock..
+         * 2. Read the offset hash table into memory OOO, lookup for range borders, and free it.
+         * 3. Read the offset table into memory OOO
+         * 4. Record the loaded cache blocks and corresponding file offset range
+         * 5. On read each offset, check whether it's already loaded
+         * 6. If not, wait until it's loaded.
+         * 7. If access to one cache reached it's possible maximum, remove it from memory.
+         * -----------------------------------------------------
+         * In order to ensure the OOO property, we may need some global variables
+         * to control concurrent requests. What's more, we need a cache object to control
+         * the overall access to file contents. This cache object also need to be created OOO.
+         */
         return kNotSupported;
     }
 

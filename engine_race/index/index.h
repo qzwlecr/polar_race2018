@@ -2,6 +2,7 @@
 #define ENGINE_RACE_INDEX_INDEX_H
 
 #include <cstdint>
+#include "consts/consts.h"
 #include "index/hashmap.hpp"
 
 namespace polar_race {
@@ -20,7 +21,21 @@ namespace polar_race {
         AtomicUnorderedInsertMap hashmap;
     };
 
+#define REAL_OFFSET(x) (VAL_SIZE * 1ul * x)
+
+    class OffsetTable {
+    public:
+        OffsetTable(int fd) {
+            data = new uint32_t[HASH_MAP_SIZE];
+            read(fd, data, HASH_MAP_SIZE * sizeof(uint32_t));
+        };
+
+        ~OffsetTable() { delete[]data; };
+        uint32_t *data;
+    };
+
     extern IndexStore *GlobalIndexStore;
+    extern OffsetTable *GlobalOffsetTable;
 };
 
 
