@@ -59,7 +59,7 @@ namespace polar_race {
 
 
     template<class T>
-    inline constexpr T nextPowTwo(T const v) {
+    constexpr T constexpr_next_pow_two(T const v) {
         return v ? (T(1) << constexpr_find_last_set(v - 1)) : T(1);
     }
 
@@ -72,6 +72,12 @@ namespace polar_race {
     constexpr T constexpr_max(T a, T b, Ts... ts) {
         return b < a ? constexpr_max(a, ts...) : constexpr_max(b, ts...);
     }
+
+    struct MutableData {
+        uint32_t data;
+
+        MutableData(uint32_t init) : data(init) {}
+    };
 
     class MMapAlloc {
     public:
@@ -112,38 +118,20 @@ namespace polar_race {
         }
     };
 
-    template<
-            typename Key,
-            typename Value,
-            typename Hash = std::hash<Key>,
-            typename KeyEqual = std::equal_to<Key>,
-            template<typename> class Atom = std::atomic,
-            typename IndexType = uint32_t,
-            typename Allocator = MMapAlloc>
-
     struct AtomicUnorderedInsertMap {
-        typedef Key key_type;
-        typedef Value mapped_type;
-        typedef std::pair<Key, Value> value_type;
-        typedef std::size_t size_type;
-        typedef std::ptrdiff_t difference_type;
-        typedef Hash hasher;
-        typedef KeyEqual key_equal;
-        typedef const value_type &const_reference;
-
         typedef struct ConstIterator {
-            ConstIterator(const AtomicUnorderedInsertMap &owner, IndexType slot)
+            ConstIterator(const AtomicUnorderedInsertMap &owner, uint32_t slot)
                     : owner_(owner), slot_(slot) {}
 
             ConstIterator(const ConstIterator &) = default;
 
             ConstIterator &operator=(const ConstIterator &) = default;
 
-            const value_type &operator*() const {
+            std::pair<uint64_t, MutableData> &operator*() const {
                 return owner_.slots_[slot_].keyValue();
             }
 
-            const value_type *operator->() const {
+            std::pair<uint64_t, MutableData> *operator->() const {
                 return &owner_.slots_[slot_].keyValue();
             }
 
@@ -173,7 +161,7 @@ namespace polar_race {
 
         private:
             const AtomicUnorderedInsertMap &owner_;
-            IndexType slot_;
+            uint32_t slot_;
         } const_iterator;
 
         friend ConstIterator;
@@ -181,10 +169,10 @@ namespace polar_race {
         explicit AtomicUnorderedInsertMap(
                 size_t maxSize,
                 float maxLoadFactor = 0.8f,
-                const Allocator &alloc = Allocator())
-                : allocator_(alloc){
+                const MMapAlloc &alloc = MMapAlloc())
+                : allocator_(alloc) {
             size_t capacity = size_t(maxSize / std::min(1.0f, maxLoadFactor) + 128);
-            size_t avail = size_t{1} << (8 * sizeof(IndexType) - 2);
+            size_t avail = size_t{1} << (8 * sizeof(uint32_t) - 2);
             if (capacity > avail && maxSize < avail) {
                 // we'll do our best
                 capacity = avail;
@@ -196,7 +184,7 @@ namespace polar_race {
             }
 
             numSlots_ = capacity;
-            slotMask_ = nextPowTwo(capacity * 4) - 1;
+            slotMask_ = constexpr_next_pow_two(capacity * 4) - 1;
             mmapRequested_ = sizeof(Slot) * capacity;
             slots_ = reinterpret_cast<Slot *>(allocator_.allocate(mmapRequested_));
             slots_[0].stateUpdate(EMPTY, CONSTRUCTING);
@@ -211,7 +199,7 @@ namespace polar_race {
         }
 
         template<typename Func>
-        std::pair<const_iterator, bool> findOrConstruct(const Key &key, Func &&func) {
+        std::pair<const_iterator, bool> findOrConstruct(const uint64_t &key, Func &&func) {
             auto const slot = keyToSlotIdx(key);
             auto prev = slots_[slot].headAndState_.load(std::memory_order_acquire);
 
@@ -221,7 +209,7 @@ namespace polar_race {
             }
 
             auto idx = allocateNear(slot);
-            new(&slots_[idx].keyValue().first) Key(key);
+            new(&slots_[idx].keyValue().first) uint64_t(key);
             func(static_cast<void *>(&slots_[idx].keyValue().second));
 
             while (true) {
@@ -244,8 +232,6 @@ namespace polar_race {
 
                 existing = find(key, slot);
                 if (existing != 0) {
-                    slots_[idx].keyValue().first.~Key();
-                    slots_[idx].keyValue().second.~Value();
                     slots_[idx].stateUpdate(CONSTRUCTING, EMPTY);
 
                     return std::make_pair(ConstIterator(*this, existing), false);
@@ -256,15 +242,15 @@ namespace polar_race {
         template<class K, class V>
         std::pair<const_iterator, bool> emplace(const K &key, V &&value) {
             return findOrConstruct(
-                    key, [&](void *raw) { new(raw) Value(std::forward<V>(value)); });
+                    key, [&](void *raw) { new(raw) MutableData(std::forward<V>(value)); });
         }
 
-        const_iterator find(const Key &key) const {
+        const_iterator find(const uint64_t &key) const {
             return ConstIterator(*this, find(key, keyToSlotIdx(key)));
         }
 
         const_iterator cbegin() const {
-            IndexType slot = numSlots_ - 1;
+            uint32_t slot = numSlots_ - 1;
             while (slot > 0 && slots_[slot].state() != LINKED) {
                 --slot;
             }
@@ -275,30 +261,20 @@ namespace polar_race {
             return ConstIterator(*this, 0);
         }
 
-        enum : IndexType {
+        enum : uint32_t {
             kMaxAllocationTries = 1000, // after this we throw
         };
 
-        enum BucketState : IndexType {
+        enum BucketState : uint32_t {
             EMPTY = 0,
             CONSTRUCTING = 1,
             LINKED = 2,
         };
 
         struct Slot {
-            Atom<IndexType> headAndState_;
-
-            IndexType next_;
-            value_type raw_;
-
-            ~Slot() {
-                auto s = state();
-                assert(s == EMPTY || s == LINKED);
-                if (s == LINKED) {
-                    keyValue().first.~Key();
-                    keyValue().second.~Value();
-                }
-            }
+            std::atomic<uint32_t> headAndState_;
+            uint32_t next_;
+            std::pair<uint64_t, MutableData> raw_;
 
             BucketState state() const {
                 return BucketState(headAndState_.load(std::memory_order_acquire) & 3);
@@ -309,31 +285,45 @@ namespace polar_race {
                 headAndState_ += (after - before);
             }
 
-            value_type &keyValue() {
+            std::pair<uint64_t, MutableData> &keyValue() {
                 assert(state() != EMPTY);
-                return *static_cast<value_type *>(static_cast<void *>(&raw_));
+                return *static_cast<std::pair<uint64_t, MutableData> *>(static_cast<void *>(&raw_));
             }
 
-            const value_type &keyValue() const {
+            const std::pair<uint64_t, MutableData> &keyValue() const {
                 assert(state() != EMPTY);
-                return *static_cast<const value_type *>(static_cast<const void *>(&raw_));
+                return *static_cast<const std::pair<uint64_t, MutableData> *>(static_cast<const void *>(&raw_));
             }
 
-            bool operator < (const Slot & another) {
+            bool operator<(const Slot &another) const {
                 int answer = memcmp(&(this->raw_.first), &(another.raw_.first), 8);
                 return answer >= 0;
             }
+
+            Slot(const Slot &another) : raw_(another.raw_) {
+                headAndState_ = another.headAndState_.load(std::memory_order_relaxed);
+                next_ = another.next_;
+            }
+
+            Slot &operator=(const Slot &another) {
+                headAndState_ = another.headAndState_.load(std::memory_order_relaxed);
+                next_ = another.next_;
+                raw_ = another.raw_;
+                return *this;
+            }
+
+
         };
 
         size_t mmapRequested_;
         size_t numSlots_;
 
         size_t slotMask_;
-        Allocator allocator_;
+        MMapAlloc allocator_;
         Slot *slots_;
 
-        IndexType keyToSlotIdx(const Key &key) const {
-            size_t h = hasher()(key);
+        uint32_t keyToSlotIdx(const uint64_t &key) const {
+            size_t h = std::hash<uint64_t>()(key);
             h &= slotMask_;
             while (h >= numSlots_) {
                 h -= numSlots_;
@@ -341,8 +331,8 @@ namespace polar_race {
             return h;
         }
 
-        IndexType find(const Key &key, IndexType slot) const {
-            KeyEqual ke = {};
+        uint32_t find(const uint64_t &key, uint32_t slot) const {
+            std::equal_to<uint64_t> ke = {};
             auto hs = slots_[slot].headAndState_.load(std::memory_order_acquire);
             for (slot = hs >> 2; slot != 0; slot = slots_[slot].next_) {
                 if (ke(key, slots_[slot].keyValue().first)) {
@@ -352,8 +342,8 @@ namespace polar_race {
             return 0;
         }
 
-        IndexType allocateNear(IndexType start) {
-            for (IndexType tries = 0; tries < kMaxAllocationTries; ++tries) {
+        uint32_t allocateNear(uint32_t start) {
+            for (uint32_t tries = 0; tries < kMaxAllocationTries; ++tries) {
                 auto slot = allocationAttempt(start, tries);
                 auto prev = slots_[slot].headAndState_.load(std::memory_order_acquire);
                 if ((prev & 3) == EMPTY &&
@@ -365,24 +355,17 @@ namespace polar_race {
             throw std::bad_alloc();
         }
 
-        IndexType allocationAttempt(IndexType start, IndexType tries) const {
+        uint32_t allocationAttempt(uint32_t start, uint32_t tries) const {
             if (LIKELY(tries < 8 && start + tries < numSlots_)) {
-                return IndexType(start + tries);
+                return uint32_t(start + tries);
             } else {
-                IndexType rv = IndexType(uid(eng));
+                uint32_t rv = uint32_t(uid(eng));
                 assert(rv < numSlots_);
                 return rv;
             }
         }
     };
 
-
-    template<typename T>
-    struct MutableAtom {
-        mutable T data;
-
-        MutableAtom(T init) : data(init) {}
-    };
 
 }
 

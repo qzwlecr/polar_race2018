@@ -10,7 +10,7 @@ namespace polar_race {
     bool IndexStore::put(uint64_t key, uint64_t offset) {
 
         auto ret = hashmap.findOrConstruct(key, [&](void *raw) {
-            new(raw) MutableAtom<uint32_t>(uint32_t(offset / VAL_SIZE));
+            new(raw) MutableData(uint32_t(offset / VAL_SIZE));
         });
 
         qLogDebugfmt("IndexStore: put %lu into %lu", offset, key);
