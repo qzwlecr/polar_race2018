@@ -17,9 +17,9 @@ namespace polar_race {
         std::vector<uint64_t> links;
         std::vector<uint64_t> sizes;
 
-        BucketLinkList() : links(), sizes() { sizes.push_back(0), links.push_back(0); }
+        BucketLinkList() : links(), sizes() {}
 
-        BucketLinkList(int id) : id(id), links(), sizes() { sizes.push_back(0), links.push_back(0); }
+        BucketLinkList(int id) : id(id), links(), sizes() {}
 
         uint64_t get(uint64_t head); // get next slice head in this linked bucket
 

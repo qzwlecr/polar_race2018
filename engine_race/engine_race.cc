@@ -123,6 +123,11 @@ namespace polar_race {
         if (access(META_PATH.c_str(), R_OK | W_OK)) {
             MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
             NextIndex = 0;
+            for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+                BucketLinkLists[i]->sizes.push_back(0);
+                auto index = NextIndex.fetch_add(FIRST_BUCKET_LENGTH);
+                BucketLinkLists[i]->links.push_back(index);
+            }
         } else {
             MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
             uint64_t data_size = 0;
@@ -132,6 +137,11 @@ namespace polar_race {
             }
             NextIndex = data_size;
             BucketLinkList::unpersist(MetaFd);
+            for (int i = 0; i < BUCKET_BUFFER_LENGTH; i++) {
+                BucketLinkLists[i]->sizes.push_back(0);
+                auto index = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
+                BucketLinkLists[i]->links.push_back(index);
+            }
         }
         ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
 
