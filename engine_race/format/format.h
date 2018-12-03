@@ -6,6 +6,8 @@
 #include <string>
 #include <sstream>
 
+namespace polar_race{
+
 #define Q_ESCAPE_CHAR "\x1b"
 #define Q_FMT_APPLY(x) Q_ESCAPE_CHAR x
 
@@ -32,7 +34,9 @@ void qfmtColorizerF(FILE *dstfile, const char *prefix, const char *colored, cons
 
 // const moves
 
-std::string KVArrayDump(const char* arr, size_t dumplen);
+std::string KVArrayDump(const char* arr, uint64_t dumplen);
+
+};
 
 
 #endif

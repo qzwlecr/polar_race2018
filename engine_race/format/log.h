@@ -9,6 +9,7 @@
 // usage example:
 // #define Q_LOG_LOGLEVEL 4
 // #include "zhwkre/log.h"
+namespace polar_race{
 
 #ifndef Q_LOG_LOGLEVEL
 #define Q_LOG_LOGLEVEL 20
@@ -25,8 +26,6 @@
 #ifndef qLog_TIME_FMT_STR
 #define qLog_TIME_FMT_STR "(%.2d/%.2d/%.4d %.2d:%.2d:%.2d) "
 #endif
-
-extern std::mutex logMu;
 
 #define qLogCurrTime() do{time_t rawtv;struct tm* timerep;\
 time(&rawtv);timerep = localtime(&rawtv);\
@@ -48,5 +47,7 @@ qfmtColorizerF(stderr,"[",tag,"]",color);qLogCurrTime();fprintf(stderr,fmtstr,__
 #define qLogWarnfmt(fmtstr, ...) qLogfmt(Q_LOG_WARN,"WARN",Q_COLOR_YELLOW,fmtstr,__VA_ARGS__)
 #define qLogFail(str) qLog(Q_LOG_FAIL,"FAIL",Q_COLOR_RED,str)
 #define qLogFailfmt(fmtstr, ...) qLogfmt(Q_LOG_FAIL,"FAIL",Q_COLOR_RED,fmtstr,__VA_ARGS__)
+
+};
 
 #endif

@@ -1,6 +1,7 @@
 #include "sys.h"
 
 #include <cstdlib>
+#include "../format/format.h"
 #include "../format/log.h"
 
 #include <cerrno>
@@ -9,6 +10,8 @@
 using namespace std;
 
 namespace polar_race{
+
+extern mutex logMu;
 
 RWMutex::RWMutex(){
     int rv = pthread_rwlock_init(&lockself, 0);
