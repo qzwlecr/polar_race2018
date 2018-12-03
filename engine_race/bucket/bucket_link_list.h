@@ -7,6 +7,7 @@
 
 #include "consts/consts.h"
 #include <vector>
+#include <map>
 #include <atomic>
 
 namespace polar_race {
@@ -16,6 +17,7 @@ namespace polar_race {
         int id;
         std::vector<uint64_t> links;
         std::vector<uint64_t> sizes;
+        static std::map<uint64_t, int> checker;
 
         BucketLinkList() : links(), sizes() {}
 
@@ -24,6 +26,8 @@ namespace polar_race {
         uint64_t get(uint64_t head); // get next slice head in this linked bucket
 
         static void persist(int fd);
+
+        static int check_location(uint64_t offset);
 
         static void unpersist(int fd);
 

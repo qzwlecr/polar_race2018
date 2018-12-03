@@ -11,6 +11,7 @@ extern "C" {
 namespace polar_race {
     BucketLinkList *BucketLinkLists[BUCKET_NUMBER];
     std::atomic<uint64_t> NextIndex;
+    std::map<uint64_t, int> BucketLinkList::checker;
     int ValuesFd;
     int MetaFd;
 
@@ -29,14 +30,16 @@ namespace polar_race {
 
     void BucketLinkList::unpersist(int fd) {
         int size;
+        BucketLinkList::checker.clear();
         for (int i = 0; i < BUCKET_NUMBER; i++) {
             read(fd, &size, sizeof(size));
-            uint64_t index;
+            uint64_t index, sizee;
             for (int j = 0; j < size; ++j) {
                 read(fd, &index, sizeof(index));
                 BucketLinkLists[i]->links.push_back(index);
-                read(fd, &index, sizeof(index));
-                BucketLinkLists[i]->sizes.push_back(index);
+                read(fd, &sizee, sizeof(sizee));
+                BucketLinkLists[i]->sizes.push_back(sizee);
+                BucketLinkList::checker.insert(std::make_pair(index, i));
             }
         }
 
@@ -52,6 +55,12 @@ namespace polar_race {
             }
         }
 
+    }
+
+    int BucketLinkList::check_location(uint64_t offset) {
+        auto iter = checker.upper_bound(offset);
+        --iter;
+        return iter->second;
     }
 
 }
