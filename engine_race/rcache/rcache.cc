@@ -110,7 +110,7 @@ bool RangeCache::buck_findblk(BucketLinkList* buckptr, off_t position, off_t &fb
     return false;
 }
 
-bool RangeCache::access(const char* key, off_t position, void *buffer){
+bool RangeCache::access(off_t position, void *buffer){
     blistmu.rdlock();
     auto cbptri = blklist_exist(position);
     auto cbptr = (cbptri == blklist.end() ? nullptr : *cbptri);

@@ -13,7 +13,9 @@
 #include "perf/perf.h"
 #include "bucket/bucket.h"
 #include "bucket/bucket_link_list.h"
+#include "rcache/rcache.h"
 #include <thread>
+#include <atomic>
 
 
 extern "C" {
@@ -403,6 +405,27 @@ namespace polar_race {
 // upper=="" is treated as a key after all keys in the database.
 // Therefore the following call will traverse the entire database:
 //   Range("", "", visitor)
+    struct RangeStats {
+        std::atomic_int concur_ranges;
+        std::atomic_int globidx_completed;
+        bool state_running;
+        RangeCache* rcache;
+        int metafd;
+        int backfd;
+        RangeStats():
+        concur_ranges(0), state_running(false),
+        globidx_completed(0),
+        rcache(nullptr), metafd(-1), backfd(-1){};
+        void load_globidx();
+        void unload_globidx();
+        off_t read_globidx(const char* key);
+        void load_globofftab();
+        void unload_globofftab();
+        off_t read_globofftab(uint32_t elemidx);
+        void load_globkeytab();
+        void unload_globkeytab();
+        const char* read_globkeytab(uint32_t elemidx);
+    } rs;
     RetCode EngineRace::Range(const PolarString &lower, const PolarString &upper,
                               Visitor &visitor) {
         /* TODO: what should we do?
@@ -420,7 +443,207 @@ namespace polar_race {
          * to control concurrent requests. What's more, we need a cache object to control
          * the overall access to file contents. This cache object also need to be created OOO.
          */
-        return kNotSupported;
+        // wait for previous range epoch complete
+        off_t loweroff, upperoff;
+        uint32_t nextelem = 0;
+        const char* rdkey = nullptr;
+        char* rdval = (char*)malloc(VAL_SIZE);
+        while(rs.state_running);
+        int myid = rs.concur_ranges.fetch_add(1);
+        if(myid == 0){
+            // this is the first Ranger, it need to initialize many things..
+            rs.metafd = open(META_PATH.c_str(), O_RDONLY);
+            if(rs.metafd == -1){
+                qLogFailfmt("FirstRanger: metafd open failed: %s", strerror(errno));
+                abort();
+            }
+            rs.backfd = open(VALUES_PATH.c_str(), O_RDONLY);
+            if(rs.backfd == -1){
+                qLogFailfmt("FirstRanger: backfd open failed: %s", strerror(errno));
+                abort();
+            }
+            qLogSuccfmt("FirstRanger: meta %s, values %s, cachesz %u",
+            META_PATH_SUFFIX.c_str(), VALUES_PATH_SUFFIX.c_str(), RANGE_CACHE_SIZE);
+            qLogSucc("FirstRanger: Creating RangeCache..");
+            rs.rcache = new RangeCache(rs.metafd, rs.backfd, RANGE_CACHE_SIZE);
+            qLogSucc("FirstRanger: Loading GlobalIndex");
+            rs.load_globidx();
+            if(lower.ToString() != ""){
+                loweroff = rs.read_globidx(lower.data());
+            }
+            if(upper.ToString() != ""){
+                upperoff = rs.read_globidx(upper.data());
+            }
+            rs.globidx_completed.fetch_add(1);
+            while(rs.globidx_completed != 64);
+            rs.unload_globidx();
+            rs.load_globofftab();
+            rs.load_globkeytab();
+            if(lower.ToString() == ""){
+                loweroff = rs.read_globofftab(0);
+            }
+            if(upper.ToString() == ""){
+                // TODO: change to the largest element.
+                upperoff = rs.read_globofftab(-1); // INVALID!!
+            }
+            for(uint32_t i = 0; /* TO LARGEST ELEM*/; i++){
+                if(rs.read_globofftab(i) == loweroff){
+                    nextelem = i;
+                    break;
+                }
+            }
+            // differential part ends here..
+        } else {
+            if(myid == (CONCURRENT_QUERY - 1)){
+                rs.state_running = true;
+            }
+            if(lower.ToString() != ""){
+                loweroff = rs.read_globidx(lower.data());
+            }
+            if(upper.ToString() != ""){
+                upperoff = rs.read_globidx(upper.data());
+            }
+            rs.globidx_completed.fetch_add(1);
+            if(lower.ToString() == ""){
+                loweroff = rs.read_globofftab(0);
+            }
+            if(upper.ToString() == ""){
+                // TODO: change to the largest element.
+                upperoff = rs.read_globofftab(-1); // INVALID!!
+            }
+            for(uint32_t i = 0; /* TO LARGEST ELEM*/; i++){
+                if(rs.read_globofftab(i) == loweroff){
+                    nextelem = i;
+                    break;
+                }
+            }
+        }
+        // start the reading work..
+        while(true){
+            off_t rdoffset = rs.read_globofftab(nextelem);
+            rdkey = rs.read_globkeytab(nextelem);
+            if(!rs.rcache->access(rdoffset, rdval)){
+                qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
+                abort();
+            }
+            visitor.Visit(PolarString(rdkey, KEY_SIZE), PolarString(rdval, VAL_SIZE));
+            if(rdoffset == upperoff) break;
+            nextelem ++;
+        }
+        if(rs.concur_ranges.fetch_sub(1) == 1){
+            // this is the last ranger
+            qLogSucc("LastRanger: resetting globals");
+            rs.globidx_completed = 0;
+            qLogSucc("LastRanger: unloading data structures..");
+            rs.unload_globofftab();
+            rs.unload_globkeytab();
+            qLogSucc("LastRanger: destructing RangeCache..");
+            delete rs.rcache;
+            qLogSucc("LastRanger: closing file descriptors..");
+            close(rs.metafd);
+            close(rs.backfd);
+            qLogSucc("LastRanger: resetting globals pass 2");
+            rs.rcache = nullptr;
+            rs.metafd = -1;
+            rs.backfd = -1;
+            qLogSucc("LastRanger: marking epoch completion..");
+            rs.state_running = false;
+        }
+        qLogSucc("Ranger: waiting exit sign..");
+        while(rs.state_running);
+        return kSucc;
     }
 
+    void RangeStats::load_globidx(){
+        if(GlobalIndexStore != nullptr){
+            qLogWarn("RangeStatsLoader: GlobalIndexStore is not null while trying to load it.");
+            qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
+            return;
+        }
+        IndexStore* idst = new IndexStore();
+        int idxsfd = open(INDECIES_PATH.c_str(), O_RDONLY);
+        if(idxsfd == -1){
+            qLogFailfmt("RangeStatsLoader: cannot open index path: %s", strerror(errno));
+            abort();
+        }
+        qLogDebug("RangeStatsLoader: start index unpersisting..");
+        idst->unpersist(idxsfd);
+        close(idxsfd);
+        GlobalIndexStore = idst;
+        qLogSucc("RangeStatsLoader: index unpersist completed.");
+    }
+
+    void RangeStats::unload_globidx(){
+        delete GlobalIndexStore;
+        GlobalIndexStore = nullptr;
+        qLogSucc("RangeStatsEliminator: GlobalIndexStore eliminated.");
+    }
+    
+    void RangeStats::load_globofftab(){
+        if(GlobalOffsetTable != nullptr){
+            qLogWarn("RangeStatsLoader: GlobalOffsetTable is not null while trying to load it.");
+            qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
+            return;
+        }
+        int offtfd = open(OFFSET_TABLE_PATH.c_str(), O_RDONLY);
+        if(offtfd == -1){
+            qLogFailfmt("RangeStatsLoader: cannot open offset path: %s", strerror(errno));
+            abort();
+        }
+        OffsetTable *offtab = new OffsetTable(offtfd);
+        GlobalOffsetTable = offtab;
+        qLogSucc("RangeStatsLoader: offset table unpersisted.");
+    }
+
+    void RangeStats::unload_globofftab(){
+        delete GlobalOffsetTable;
+        GlobalOffsetTable = nullptr;
+        qLogSucc("RangeStatsEliminator: GlobalOffsetTable eliminated.");
+    }
+
+    void RangeStats::load_globkeytab(){
+        if(GlobalOffsetTable != nullptr){
+            qLogWarn("RangeStatsLoader: GlobalOffsetTable is not null while trying to load it.");
+            qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
+            return;
+        }
+        // TODO: impl.
+        int offtfd = -1;
+        if(offtfd == -1){
+            qLogFailfmt("RangeStatsLoader: cannot open offset path: %s", strerror(errno));
+            abort();
+        }
+        // TODO: impl.
+        qLogSucc("RangeStatsLoader: offset table unpersisted.");
+    }
+
+    void RangeStats::unload_globkeytab(){
+        // TODO: impl.
+        qLogSucc("RangeStatsEliminator: GlobalOffsetTable eliminated.");
+    }
+
+    off_t RangeStats::read_globidx(const char* key){
+        while(GlobalIndexStore == nullptr);
+        uint64_t pos = 0;
+        bool exist = GlobalIndexStore->get(*(const uint64_t*)(key), pos);
+        if(!exist){
+            qLogWarn("GlobalIndexReader: are you trying to get some not-exist key in range??");
+        }
+        return pos;
+    }
+
+    off_t RangeStats::read_globofftab(uint32_t elemidx){
+        while(GlobalOffsetTable == nullptr);
+        // TODO: write overflow check here
+        if(false){
+            qLogWarnfmt("GlobalOffsetReader: overflow detected, trying read %u, only has %u", elemidx, 0);
+            return 0;
+        }
+        return REAL_OFFSET(GlobalOffsetTable->data[elemidx]);
+    }
+
+    const char* RangeStats::read_globkeytab(uint32_t elemidx){
+        // TODO: implement this
+        return nullptr;
+    }
 }  // namespace polar_race

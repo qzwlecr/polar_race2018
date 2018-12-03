@@ -35,7 +35,7 @@ class CacheBlock {
 
 class RangeCache {
     public:
-    bool access(const char* key, off_t position, void* buffer);
+    bool access(off_t position, void* buffer);
     RangeCache(int metafd, int backfd, uint32_t mxsize);
     ~RangeCache();
     private:
