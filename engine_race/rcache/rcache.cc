@@ -118,9 +118,7 @@ bool RangeCache::access(off_t position, void *buffer){
     if(cbptr == nullptr){
         // cache miss
         qLogDebugfmt("RangeCache: miss at %ld", position);
-        // which block we need to load?
-        // TODO: find bucket id from provided key.
-        int buckid = 0;// INVALID!!
+        int buckid = BucketLinkList::check_location(position);
         qLogDebugfmt("RangeCache: going to load from bucket %d", buckid);
         off_t cblkbegin = 0;
         uint64_t cblklen = 0;

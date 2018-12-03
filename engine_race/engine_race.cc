@@ -483,10 +483,9 @@ namespace polar_race {
                 loweroff = rs.read_globofftab(0);
             }
             if(upper.ToString() == ""){
-                // TODO: change to the largest element.
-                upperoff = rs.read_globofftab(-1); // INVALID!!
+                upperoff = rs.read_globofftab(indexer_size - 1);
             }
-            for(uint32_t i = 0; /* TO LARGEST ELEM*/; i++){
+            for(uint32_t i = 0; i < indexer_size; i++){
                 if(rs.read_globofftab(i) == loweroff){
                     nextelem = i;
                     break;
@@ -508,10 +507,9 @@ namespace polar_race {
                 loweroff = rs.read_globofftab(0);
             }
             if(upper.ToString() == ""){
-                // TODO: change to the largest element.
-                upperoff = rs.read_globofftab(-1); // INVALID!!
+                upperoff = rs.read_globofftab(indexer_size - 1);
             }
-            for(uint32_t i = 0; /* TO LARGEST ELEM*/; i++){
+            for(uint32_t i = 0; i < indexer_size; i++){
                 if(rs.read_globofftab(i) == loweroff){
                     nextelem = i;
                     break;
@@ -592,6 +590,7 @@ namespace polar_race {
         }
         OffsetTable *offtab = new OffsetTable(offtfd);
         GlobalOffsetTable = offtab;
+        close(offtfd);
         qLogSucc("RangeStatsLoader: offset table unpersisted.");
     }
 
@@ -602,24 +601,26 @@ namespace polar_race {
     }
 
     void RangeStats::load_globkeytab(){
-        if(GlobalOffsetTable != nullptr){
-            qLogWarn("RangeStatsLoader: GlobalOffsetTable is not null while trying to load it.");
+        if(GlobalKeyTable != nullptr){
+            qLogWarn("RangeStatsLoader: GlobalKeyTable is not null while trying to load it.");
             qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
             return;
         }
-        // TODO: impl.
-        int offtfd = -1;
+        int offtfd = open(KEY_TABLE_PATH.c_str(), O_RDONLY);
         if(offtfd == -1){
-            qLogFailfmt("RangeStatsLoader: cannot open offset path: %s", strerror(errno));
+            qLogFailfmt("RangeStatsLoader: cannot open key path: %s", strerror(errno));
             abort();
         }
-        // TODO: impl.
-        qLogSucc("RangeStatsLoader: offset table unpersisted.");
+        KeyTable* ktab = new KeyTable(offtfd);
+        GlobalKeyTable = ktab;
+        close(offtfd);
+        qLogSucc("RangeStatsLoader: key table unpersisted.");
     }
 
     void RangeStats::unload_globkeytab(){
-        // TODO: impl.
-        qLogSucc("RangeStatsEliminator: GlobalOffsetTable eliminated.");
+        delete GlobalKeyTable;
+        GlobalKeyTable = nullptr;
+        qLogSucc("RangeStatsEliminator: GlobalKeyTable eliminated.");
     }
 
     off_t RangeStats::read_globidx(const char* key){
@@ -634,8 +635,7 @@ namespace polar_race {
 
     off_t RangeStats::read_globofftab(uint32_t elemidx){
         while(GlobalOffsetTable == nullptr);
-        // TODO: write overflow check here
-        if(false){
+        if(elemidx >= indexer_size){
             qLogWarnfmt("GlobalOffsetReader: overflow detected, trying read %u, only has %u", elemidx, 0);
             return 0;
         }
@@ -643,7 +643,11 @@ namespace polar_race {
     }
 
     const char* RangeStats::read_globkeytab(uint32_t elemidx){
-        // TODO: implement this
-        return nullptr;
+        while(GlobalKeyTable == nullptr);
+        if(elemidx >= indexer_size){
+            qLogWarnfmt("GlobalKeyReader: overflow detected, trying read %u, only has %u", elemidx, 0);
+            return 0;
+        }
+        return (char*)&(GlobalKeyTable->data[elemidx]);
     }
 }  // namespace polar_race
