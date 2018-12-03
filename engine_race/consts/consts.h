@@ -29,10 +29,12 @@ namespace polar_race {
     const std::string INDECIES_PATH_SUFFIX = "/ralopdb_index.dat";
     const std::string META_PATH_SUFFIX = "/ralopdb_meta.dat";
     const std::string OFFSET_TABLE_PATH_SUFFIX = "/ralopdb_offsets.dat";
+    const std::string KEY_TABLE_PATH_SUFFIX = "/ralopdb_keys.dat";
     extern std::string VALUES_PATH;
     extern std::string INDECIES_PATH;
     extern std::string META_PATH;
     extern std::string OFFSET_TABLE_PATH;
+    extern std::string KEY_TABLE_PATH;
     const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;

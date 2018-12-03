@@ -56,19 +56,20 @@ namespace polar_race {
     std::string INDECIES_PATH;
     std::string META_PATH;
     std::string OFFSET_TABLE_PATH;
+    std::string KEY_TABLE_PATH;
 
     std::string recvaddres[HANDLER_THREADS];
     struct sockaddr_un rsaddr[HANDLER_THREADS];
     TimingProfile handtps[HANDLER_THREADS] = {{0}};
     std::atomic_bool reqfds_occupy[UDS_NUM];
     MailBox requestfds[UDS_NUM];
-    Accumulator requestId(0);
     bool running = true;
     std::atomic_bool is_forked;
     std::atomic_bool is_initialized;
 
     int valuesfdr = 0;
     volatile int lockfd = -1;
+    uint64_t indexer_size = 0;
     std::thread *selfclsr = nullptr;
     Accumulator newaff(0);
 
@@ -91,6 +92,7 @@ namespace polar_race {
         INDECIES_PATH = name + INDECIES_PATH_SUFFIX;
         META_PATH = name + META_PATH_SUFFIX;
         OFFSET_TABLE_PATH = name + OFFSET_TABLE_PATH_SUFFIX;
+        KEY_TABLE_PATH = name + KEY_TABLE_PATH_SUFFIX;
         if (EXEC_MODE_BENCHMARK) {
             qLogSuccfmt("Startup: Bencher %s", name.c_str());
             if (access(name.c_str(), F_OK)) {
@@ -137,6 +139,10 @@ namespace polar_race {
             uint64_t data_size = 0;
             if (read(MetaFd, &data_size, sizeof(uint64_t)) == -1) {
                 qLogFailfmt("Startup: Read file size failed: %s", strerror(errno));
+                abort();
+            }
+            if (read(MetaFd, &indexer_size, sizeof(uint64_t)) == -1) {
+                qLogFailfmt("Startup: Read indexer size failed: %s", strerror(errno));
                 abort();
             }
             NextIndex = data_size;
@@ -235,7 +241,6 @@ namespace polar_race {
             }
             qLogInfo("Startup: resetting Global Variables");
             running = true;
-            requestId = 0;
             newaff = 0;
             for (int i = 0; i < HANDLER_THREADS; i++) {
                 handtps[i] = {0};

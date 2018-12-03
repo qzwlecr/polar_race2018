@@ -5,6 +5,7 @@
 namespace polar_race {
     IndexStore *GlobalIndexStore;
     OffsetTable *GlobalOffsetTable;
+    KeyTable *GlobalKeyTable;
     std::mt19937 eng;
     std::uniform_int_distribution<uint32_t> uid;
 

@@ -93,34 +93,53 @@ namespace polar_race {
                     delete Buckets[i];
                 }
                 for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
-                    delete BackupBuffer[i];
+                    free(BackupBuffer[i]);
                 }
-                uint64_t file_size = NextIndex.load();
-                int meta_fd = open(META_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
-                write(meta_fd, &file_size, sizeof(uint64_t));
-                BucketLinkList::persist(meta_fd);
+                // delete buffers
+
                 int index_fd = open(INDECIES_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                int offset_fd = open(OFFSET_TABLE_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                int key_fd = open(KEY_TABLE_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+                int meta_fd = open(META_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
+
                 GlobalIndexStore->persist(index_fd);
                 for (int i = 0; i < HANDLER_THREADS; i++) {
                     std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
                     PrintTiming(handtps[i]);
                     std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
                 }
-                close(index_fd);
-                close(meta_fd);
-                flock(lockfd, LOCK_UN);
+
                 std::sort(GlobalIndexStore->hashmap.slots_,
                           GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_);
+
                 uint32_t *sorted_offset = (uint32_t *) malloc(HASH_MAP_SIZE * sizeof(uint32_t));
-                int index = 0;
+                uint64_t index = 0;
                 for (auto iter = GlobalIndexStore->hashmap.cbegin(); iter != GlobalIndexStore->hashmap.cend(); iter++) {
                     sorted_offset[index++] = (*iter).second.data;
                 }
-                int offset_fd = open(OFFSET_TABLE_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
-                write(offset_fd, sorted_offset, HASH_MAP_SIZE * sizeof(uint32_t));
+                write(offset_fd, sorted_offset, index * sizeof(uint32_t));
+                free(sorted_offset);
+
+                uint64_t *sorted_key = (uint64_t *) malloc(HASH_MAP_SIZE * sizeof(uint64_t));
+                index = 0;
+                for (auto iter = GlobalIndexStore->hashmap.cbegin(); iter != GlobalIndexStore->hashmap.cend(); iter++) {
+                    sorted_key[index++] = (*iter).first;
+                }
+                write(key_fd, sorted_key, index * sizeof(uint64_t));
+                free(sorted_key);
+
+                uint64_t file_size = NextIndex.load();
+                write(meta_fd, &file_size, sizeof(uint64_t));
+                write(meta_fd, &index, sizeof(uint64_t));
+                BucketLinkList::persist(meta_fd);
+
+                close(index_fd);
+                close(key_fd);
                 close(offset_fd);
+                close(meta_fd);
+
+                flock(lockfd, LOCK_UN);
                 qLogSucc("Flusher unlocked filelock");
-                BucketLinkList::persist(MetaFd);
                 mp.close();
                 hbcmb.close();
                 exit(0);

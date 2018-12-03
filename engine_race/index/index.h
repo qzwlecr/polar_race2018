@@ -34,8 +34,20 @@ namespace polar_race {
         uint32_t *data;
     };
 
+    class KeyTable {
+    public:
+        KeyTable(int fd) {
+            data = new uint64_t[HASH_MAP_SIZE];
+            read(fd, data, HASH_MAP_SIZE * sizeof(uint64_t));
+        };
+
+        ~KeyTable() { delete[]data; };
+        uint64_t *data;
+    };
+
     extern IndexStore *GlobalIndexStore;
     extern OffsetTable *GlobalOffsetTable;
+    extern KeyTable *GlobalKeyTable;
 };
 
 
