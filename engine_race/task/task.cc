@@ -109,10 +109,11 @@ namespace polar_race {
                 close(index_fd);
                 close(meta_fd);
                 flock(lockfd, LOCK_UN);
-                std::sort(GlobalIndexStore->hashmap.slots_, GlobalIndexStore->hashmap.slots_+GlobalIndexStore->hashmap.numSlots_);
-                uint32_t* sorted_offset = (uint32_t *)malloc(HASH_MAP_SIZE * sizeof(uint32_t));
+                std::sort(GlobalIndexStore->hashmap.slots_,
+                          GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_);
+                uint32_t *sorted_offset = (uint32_t *) malloc(HASH_MAP_SIZE * sizeof(uint32_t));
                 int index = 0;
-                for(auto iter = GlobalIndexStore->hashmap.cbegin(); iter != GlobalIndexStore->hashmap.cend(); iter ++){
+                for (auto iter = GlobalIndexStore->hashmap.cbegin(); iter != GlobalIndexStore->hashmap.cend(); iter++) {
                     sorted_offset[index++] = (*iter).second.data;
                 }
                 int offset_fd = open(OFFSET_TABLE_PATH.c_str(), O_CREAT | O_TRUNC | O_RDWR | O_APPEND, 0666);
@@ -146,147 +147,47 @@ namespace polar_race {
         }
         struct sockaddr_un cliun = {0};
         RequestResponse *rr = reinterpret_cast<RequestResponse *>(memalign(4096, sizeof(RequestResponse)));
-        int valuesfd = ::open(VALUES_PATH.c_str(), O_NOATIME);
-        if (valuesfd == -1) {
-            qLogFailfmt("Cannot open values file %s, is it created already??", VALUES_PATH.c_str());
-            abort();
-        }
 //        if (posix_fadvise64(valuesfd, 0, 0, POSIX_FADV_RANDOM) == -1) {
 //            qLogFailfmt("RequestProcessor: Cannot advise file usage pattern: %s", strerror(errno));
 //            abort();
 //        }
         struct timespec t = {0};
         while (true) {
-            StartTimer(&t);
-            ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr),
-                                      sizeof(RequestResponse), &cliun);
-            tp->uds_rd += GetTimeElapsed(&t);
-            if (UNLIKELY(gv != sizeof(RequestResponse))) {
-                qLogFailfmt("RequestProcessor[%s]: getRequest failed or incomplete: %s(%ld)", LDOMAIN(recvaddr.c_str()),
-                            STRERR, gv);
-                continue;
-            }
-            // simply ok..
-            if (rr->type == RequestType::TYPE_RD) {
-                uint64_t key = *reinterpret_cast<uint64_t *>(rr->key);
-                uint64_t file_offset = 0;
-                qLogInfofmt("RequestProcessor[%s]: RD %s !", LDOMAIN(recvaddr.c_str()),
-                            KVArrayDump(rr->key, 2).c_str());
-                // look up in global index store
-                StartTimer(&t);
-                if (!GlobalIndexStore->get(key, file_offset)) {
-                    tp->index_get += GetTimeElapsed(&t);
-                    // not found
-                    qLogInfofmt("RequestProcessor[%s]: Key not found !", LDOMAIN(recvaddr.c_str()));
-                    rr->type = RequestType::TYPE_EEXIST;
-                    StartTimer(&t);
-                    int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                    tp->uds_wr += GetTimeElapsed(&t);
-                    if (UNLIKELY(sv == -1)) {
-                        qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
-                        abort();
-                    }
-                } else {
-                    tp->index_get += GetTimeElapsed(&t);
-                    // that means we should read it from file
-                    int seekv = lseek(valuesfd, file_offset, SEEK_SET);
-                    if (UNLIKELY(seekv == -1)) {
-                        qLogWarnfmt("RequestProcessor[%s]: lseek failed: %s, treated as NOT FOUND.",
-                                    LDOMAIN(recvaddr.c_str()), STRERR);
-                        qLogWarnfmt(
-                                "RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.",
-                                LDOMAIN(recvaddr.c_str()));
-                        qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
-                                    LDOMAIN(recvaddr.c_str()));
-                        rr->type = RequestType::TYPE_EEXIST;
-                        StartTimer(&t);
-                        int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                        tp->uds_wr += GetTimeElapsed(&t);
-                        if (UNLIKELY(sv == -1)) {
-                            qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
-                                        STRERR);
-                            abort();
-                        }
-                    } else {
-                        // read things off it
-                        StartTimer(&t);
-                        ssize_t rdv = read(valuesfd, rr->value, VAL_SIZE);
-                        uint64_t rdtel = GetTimeElapsed(&t);
-                        tp->rddsk.accumulate((rdtel / 1000));
-                        tp->read_disk += rdtel;
-                        if (UNLIKELY(rdv != VAL_SIZE)) {
-                            qLogWarnfmt(
-                                    "RequestProcessor[%s]: read failed or incomplete: %s(%ld), treated as NOT FOUND.",
-                                    LDOMAIN(recvaddr.c_str()), STRERR, rdv);
-                            qLogWarnfmt(
-                                    "RequestProcessor[%s]: this normally indicates filesystem content and in-memory index incoherency.",
-                                    LDOMAIN(recvaddr.c_str()));
-                            qLogWarnfmt("RequestProcessor[%s]: you should recheck the whole process carefully!!",
-                                        LDOMAIN(recvaddr.c_str()));
-                            rr->type = RequestType::TYPE_EEXIST;
-                            StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                            tp->uds_wr += GetTimeElapsed(&t);
-                            if (UNLIKELY(sv == -1)) {
-                                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
-                                            STRERR);
-                                abort();
-                            }
-                        } else {
-                            // read OK.
-                            // release the spyce!
-                            qLogDebugfmt("RequestProcessor[%s]: Value found on DISK", LDOMAIN(recvaddr.c_str()));
-                            qLogDebugfmt("RequestProcessor[%s]: Value read off disk: %s", LDOMAIN(recvaddr.c_str()),
-                                         KVArrayDump(rr->value, 2).c_str());
-                            rr->type = RequestType::TYPE_OK;
-                            StartTimer(&t);
-                            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                            tp->uds_wr += GetTimeElapsed(&t);
-                            if (sv == -1) {
-                                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()),
-                                            STRERR);
-                                abort();
-                            }
-                        }
-                    }
-                }
-                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
-            } else {
-                if (UNLIKELY(!attached)) {
-                    cpu_set_t set;
-                    CPU_ZERO(&set);
-                    CPU_SET(own_id * 2, &set);
-                    //dirty hard code
-                    if (sched_setaffinity(0, sizeof(set), &set) == -1) {
-                        qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
-                        abort();
-                    }
-                    attached = true;
-                }
-                qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
-                qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
-                             *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
-                uint64_t file_offset;
-                // put into GlobIdx
-                StartTimer(&t);
-                Buckets[(*reinterpret_cast<uint64_t *>(rr->key))/(UINT64_MAX / BUCKET_NUMBER)]->put(file_offset, rr->value);
-                tp->spin_commit += GetTimeElapsed(&t);
-                StartTimer(&t);
-                GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
-                tp->index_put += GetTimeElapsed(&t);
-                qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
-                // generate return information.
-                qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
-                rr->type = RequestType::TYPE_OK;
-                StartTimer(&t);
-                int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
-                tp->uds_wr += GetTimeElapsed(&t);
-                if (sv == -1) {
-                    qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+            if (UNLIKELY(!attached)) {
+                cpu_set_t set;
+                CPU_ZERO(&set);
+                CPU_SET(own_id * 2, &set);
+                //dirty hard code
+                if (sched_setaffinity(0, sizeof(set), &set) == -1) {
+                    qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
                     abort();
                 }
-                qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
+                attached = true;
             }
+            qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
+            qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
+                         *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
+            uint64_t file_offset;
+            // put into GlobIdx
+            StartTimer(&t);
+            Buckets[(*reinterpret_cast<uint64_t *>(rr->key)) / (UINT64_MAX / BUCKET_NUMBER)]->put(file_offset,
+                                                                                                  rr->value);
+            tp->spin_commit += GetTimeElapsed(&t);
+            StartTimer(&t);
+            GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
+            tp->index_put += GetTimeElapsed(&t);
+            qLogDebugfmt("RequestProcessor[%s]: WR file_offset %lu !", LDOMAIN(recvaddr.c_str()), file_offset);
+            // generate return information.
+            qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
+            rr->type = RequestType::TYPE_OK;
+            StartTimer(&t);
+            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+            tp->uds_wr += GetTimeElapsed(&t);
+            if (sv == -1) {
+                qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);
+                abort();
+            }
+            qLogDebugfmt("RequestProcessor[%s]: Processing Complete.", LDOMAIN(recvaddr.c_str()));
         }
     }
 

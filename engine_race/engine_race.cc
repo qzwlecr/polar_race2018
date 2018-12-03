@@ -64,6 +64,10 @@ namespace polar_race {
     MailBox requestfds[UDS_NUM];
     Accumulator requestId(0);
     bool running = true;
+    std::atomic_bool is_forked;
+    std::atomic_bool is_initialized;
+
+    int valuesfdr = 0;
     volatile int lockfd = -1;
     std::thread *selfclsr = nullptr;
     Accumulator newaff(0);
@@ -144,138 +148,61 @@ namespace polar_race {
             }
         }
         ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
+        valuesfdr = open(VALUES_PATH.c_str(), O_NOATIME);
 
         if (posix_fallocate(ValuesFd, 0, FILE_SIZE)) {
             qLogFailfmt("Startup: Fallocate file failed: %s", strerror(errno));
             abort();
         }
 
-        int sem = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
-        if (sem == -1) {
-            qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
-            abort();
-        }
-        if (semctl(sem, 0, SETVAL, 1) == -1) {
-            qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
-            abort();
-        }
-        qLogInfo("Startup: resetting Global Variables");
-        running = true;
-        requestId = 0;
-        newaff = 0;
-        for (int i = 0; i < HANDLER_THREADS; i++) {
-            handtps[i] = {0};
-        }
+        is_forked = false;
+        is_initialized = false;
+
         if (SELFCLOSER_ENABLED) {
             qLogSuccfmt("Startup: Starting SelfCloser, sanity time %d", SANITY_EXEC_TIME);
             selfclsr = new std::thread(SelfCloser, SANITY_EXEC_TIME, &running);
             qLogInfo("Startup: SelfCloser started.");
         }
-        qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
-        for (int i = 0; i < HANDLER_THREADS; i++) {
-            recvaddres[i] = std::string(REQ_ADDR_PREFIX) + ItoS(i);
-            rsaddr[i] = mksockaddr_un(recvaddres[i]);
-        }
-        qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
-        for (int i = 0; i < UDS_NUM; i++) {
-            std::string sndaddr = std::string(RESP_ADDR_PREFIX) + ItoS(i);
-            requestfds[i] = MailBox(sndaddr);
-            if (requestfds[i].desc == -1) {
-                qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
-                abort();
-            }
-            reqfds_occupy[i] = false;
-        }
-        qLogInfo("Startup: FORK !");
-        if (fork()) {
-            // parent
-            qLogSucc("Startup: FORK completed.");
-            qLogSucc("Startup: HeartBeat thread.");
-            std::thread hbthread(HeartBeater, HB_ADDR, &running);
-            hbthread.detach();
-            // qLogInfo("Startup: wait ReqHandler startup complete.");
-            struct sembuf sem_buf{
-                    .sem_num = 0,
-                    .sem_op = 0
-            };
-            semop(sem, &sem_buf, 1);
-            qLogSucc("Startup: Everything OK.");
-        } else {
-            // child
-            qLogInfo("RequestHandler: FORK completed.");
-            qLogInfo("RequestHandler: Setup termination detector.");
-            if (!SIGNAL_FULL_DUMP) {
-                signal(SIGABRT, signal_handler);
-                signal(SIGFPE, signal_handler);
-                signal(SIGINT, signal_handler);
-                signal(SIGSEGV, signal_handler);
-                signal(SIGTERM, signal_handler);
-            } else {
-                struct sigaction repact = {0};
-                repact.sa_sigaction = signal_dump;
-                repact.sa_flags = SA_SIGINFO;
-                sigemptyset(&(repact.sa_mask));
-                int sigv = 0;
-                sigv = sigaction(SIGABRT, &repact, NULL);
-                if (sigv == -1) {
-                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGABRT failed: %s", strerror(errno));
-                }
-                sigv = sigaction(SIGFPE, &repact, NULL);
-                if (sigv == -1) {
-                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGFPE failed: %s", strerror(errno));
-                }
-                sigv = sigaction(SIGINT, &repact, NULL);
-                if (sigv == -1) {
-                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGINT failed: %s", strerror(errno));
-                }
-                sigv = sigaction(SIGSEGV, &repact, NULL);
-                if (sigv == -1) {
-                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGSEGV failed: %s", strerror(errno));
-                }
-                sigv = sigaction(SIGTERM, &repact, NULL);
-                if (sigv == -1) {
-                    qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
-                }
-            }
-            for (int i = 0; i < BUCKET_NUMBER; i++) {
-                Buckets[i] = new Bucket(i);
-            }
-            size_t pagesize = (size_t) getpagesize();
-            for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
-                BackupBuffer[i] = (char *) memalign(pagesize, BUCKET_BUFFER_LENGTH);
-            }
-            BucketThreadPool = new thread_pool(WRITE_CONCURRENCY);
-            qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
-            for (int i = 0; i < HANDLER_THREADS; i++) {
-                qLogInfofmt("RequestHander: Starting Handler thread %d", i);
-                std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
-                handthrd.detach();
-            }
-            qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
-            GlobalIndexStore = new IndexStore();
-            qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
-            if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
-                qLogInfo("Startup: Unpersisting..");
-                int fd = open(INDECIES_PATH.c_str(), 0);
-                GlobalIndexStore->unpersist(fd);
-                close(fd);
-            }
-            std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
-            hbdtrd.detach();
-            struct sembuf sem_buf{
-                    .sem_num = 0,
-                    .sem_op = -1
-            };
-            semop(sem, &sem_buf, 1);
-            qLogSucc("RequestHandler: everything OK, will now go to indefinite sleep!!");
-            while (true) {
-                select(1, NULL, NULL, NULL, NULL);
-            }
-            qLogFail("RequestHandler: finished waiting from select(). exiting//");
-            exit(1);
-        }
+
         *eptr = engine_race;
         return kSucc;
+    }
+
+    void EngineRace::prepareSignalDump() {
+        qLogInfo("RequestHandler: Setup termination detector.");
+        if (!SIGNAL_FULL_DUMP) {
+            signal(SIGABRT, signal_handler);
+            signal(SIGFPE, signal_handler);
+            signal(SIGINT, signal_handler);
+            signal(SIGSEGV, signal_handler);
+            signal(SIGTERM, signal_handler);
+        } else {
+            struct sigaction repact = {0};
+            repact.sa_sigaction = signal_dump;
+            repact.sa_flags = SA_SIGINFO;
+            sigemptyset(&(repact.sa_mask));
+            int sigv = 0;
+            sigv = sigaction(SIGABRT, &repact, NULL);
+            if (sigv == -1) {
+                qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGABRT failed: %s", strerror(errno));
+            }
+            sigv = sigaction(SIGFPE, &repact, NULL);
+            if (sigv == -1) {
+                qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGFPE failed: %s", strerror(errno));
+            }
+            sigv = sigaction(SIGINT, &repact, NULL);
+            if (sigv == -1) {
+                qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGINT failed: %s", strerror(errno));
+            }
+            sigv = sigaction(SIGSEGV, &repact, NULL);
+            if (sigv == -1) {
+                qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGSEGV failed: %s", strerror(errno));
+            }
+            sigv = sigaction(SIGTERM, &repact, NULL);
+            if (sigv == -1) {
+                qLogWarnfmt("RequestHandler: prepare signal dump for signal SIGTERM failed: %s", strerror(errno));
+            }
+        }
     }
 
 // 2. Close engine
@@ -296,6 +223,95 @@ namespace polar_race {
 
 // 3. Write a key-value pair into engine
     RetCode EngineRace::Write(const PolarString &key, const PolarString &value) {
+        if (!is_forked) {
+            int sem = semget(IPC_PRIVATE, 1, 0666 | IPC_CREAT);
+            if (sem == -1) {
+                qLogFailfmt("Startup: Acquiring semophore failed: %s", strerror(errno));
+                abort();
+            }
+            if (semctl(sem, 0, SETVAL, 1) == -1) {
+                qLogFailfmt("Startup: Set semophore failed: %s", strerror(errno));
+                abort();
+            }
+            qLogInfo("Startup: resetting Global Variables");
+            running = true;
+            requestId = 0;
+            newaff = 0;
+            for (int i = 0; i < HANDLER_THREADS; i++) {
+                handtps[i] = {0};
+            }
+            qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
+            for (int i = 0; i < HANDLER_THREADS; i++) {
+                recvaddres[i] = std::string(REQ_ADDR_PREFIX) + ItoS(i);
+                rsaddr[i] = mksockaddr_un(recvaddres[i]);
+            }
+            qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
+            for (int i = 0; i < UDS_NUM; i++) {
+                std::string sndaddr = std::string(RESP_ADDR_PREFIX) + ItoS(i);
+                requestfds[i] = MailBox(sndaddr);
+                if (requestfds[i].desc == -1) {
+                    qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
+                    abort();
+                }
+                reqfds_occupy[i] = false;
+            }
+            qLogInfo("Startup: FORK !");
+            if (fork()) {
+                // parent
+                qLogSucc("Startup: FORK completed.");
+                qLogSucc("Startup: HeartBeat thread.");
+                std::thread hbthread(HeartBeater, HB_ADDR, &running);
+                hbthread.detach();
+                // qLogInfo("Startup: wait ReqHandler startup complete.");
+                struct sembuf sem_buf{
+                        .sem_num = 0,
+                        .sem_op = 0
+                };
+                semop(sem, &sem_buf, 1);
+                qLogSucc("Startup: Everything OK.");
+            } else {
+                // child
+                qLogInfo("RequestHandler: FORK completed.");
+                prepareSignalDump();
+                for (int i = 0; i < BUCKET_NUMBER; i++) {
+                    Buckets[i] = new Bucket(i);
+                }
+                size_t pagesize = (size_t) getpagesize();
+                for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
+                    BackupBuffer[i] = (char *) memalign(pagesize, BUCKET_BUFFER_LENGTH);
+                }
+                BucketThreadPool = new thread_pool(WRITE_CONCURRENCY);
+                qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
+                for (int i = 0; i < HANDLER_THREADS; i++) {
+                    qLogInfofmt("RequestHander: Starting Handler thread %d", i);
+                    std::thread handthrd(RequestProcessor, recvaddres[i], &(handtps[i]), uint8_t(i));
+                    handthrd.detach();
+                }
+                qLogSucc("RequestHandler: starting HeartBeat Detection thread..");
+                GlobalIndexStore = new IndexStore();
+                qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
+                if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
+                    qLogInfo("Startup: Unpersisting..");
+                    int fd = open(INDECIES_PATH.c_str(), 0);
+                    GlobalIndexStore->unpersist(fd);
+                    close(fd);
+                }
+                std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
+                hbdtrd.detach();
+                struct sembuf sem_buf{
+                        .sem_num = 0,
+                        .sem_op = -1
+                };
+                semop(sem, &sem_buf, 1);
+                qLogSucc("RequestHandler: everything OK, will now go to indefinite sleep!!");
+                while (true) {
+                    select(1, NULL, NULL, NULL, NULL);
+                }
+                qLogFail("RequestHandler: finished waiting from select(). exiting//");
+                exit(1);
+            }
+            is_forked = true;
+        }
         qLogDebugfmt("Engine::Write: K %hu => V %hu",
                      *reinterpret_cast<const uint16_t *>(key.data()),
                      *reinterpret_cast<const uint16_t *>(value.data()));
@@ -333,39 +349,42 @@ namespace polar_race {
 
 // 4. Read value of a key
     RetCode EngineRace::Read(const PolarString &key, std::string *value) {
-        RequestResponse rr = {0};
-        memcpy(rr.key, key.data(), KEY_SIZE);
-        rr.type = RequestType::TYPE_RD;
-        // Acquire an Mailbox
-        uint64_t reqIdx = 0;
-        bool fk = false;
-        do {
-            reqIdx = requestId.fetch_add(1);
-            fk = false;
-        } while (!reqfds_occupy[reqIdx % UDS_NUM].compare_exchange_weak(fk, true));
-        qLogDebugfmt("Engine::Read Using Socket %lu K %s", reqIdx, KVArrayDump(rr.key, 8).c_str());
-        // then OK, we do writing work
-        ssize_t sv = requestfds[reqIdx % UDS_NUM].sendOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &(rsaddr[reqIdx % HANDLER_THREADS]));
-        if (sv == -1) {
-            reqfds_occupy[reqIdx % UDS_NUM] = false;
-            return kIOError;
+        if(!is_initialized) {
+            GlobalIndexStore = new IndexStore();
+            qLogSuccfmt("StartupConfigurator: Unpersisting Core Index from %s", INDECIES_PATH.c_str());
+            if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
+                qLogInfo("Startup: Unpersisting..");
+                int fd = open(INDECIES_PATH.c_str(), 0);
+                GlobalIndexStore->unpersist(fd);
+                close(fd);
+            }
         }
-        struct sockaddr_un useless;
-        ssize_t rv = requestfds[reqIdx % UDS_NUM].getOne(
-                reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
-        reqfds_occupy[reqIdx % UDS_NUM] = false;
-        if (rv != sizeof(RequestResponse)) {
-            qLogWarnfmt("Engine::Read failed or incomplete: %s(%ld)", strerror(errno), rv);
-            return kIOError;
-        }
-        if (rr.type != RequestType::TYPE_OK) {
+        uint64_t k = *reinterpret_cast<uint64_t *>(const_cast<char * >(key.data()));
+        char val[VAL_SIZE];
+        uint64_t file_offset = 0;
+        // look up in global index store
+        if (!GlobalIndexStore->get(k, file_offset)) {
+            // not found
+            qLogInfofmt("EngineRace: Key %lu not found !", k);
             return kNotFound;
+        } else {
+            // that means we should read it from file
+            // read things off it
+//            StartTimer(&t);
+            ssize_t rdv = pread(valuesfdr, val, VAL_SIZE, file_offset);
+//            uint64_t rdtel = GetTimeElapsed(&t);
+//            tp->rddsk.accumulate((rdtel / 1000));
+//            tp->read_disk += rdtel;
+            if (UNLIKELY(rdv != VAL_SIZE)) {
+                qLogWarnfmt("EngineRace: read failed or incomplete: %s(%ld), treated as NOT FOUND.", strerror(errno),
+                            rdv);
+                return kNotFound;
+            } else {
+                qLogDebugfmt("EngineRace: Value read off disk: %lu %s", k, KVArrayDump(val, 2).c_str());
+                *value = std::string(val, VAL_SIZE);
+                return kSucc;
+            }
         }
-        qLogDebugfmt("Engine::Read Complete K %s V %s", KVArrayDump(rr.key, 8).c_str(),
-                     KVArrayDump(rr.value, 8).c_str());
-        *value = std::string(rr.value, VAL_SIZE);
-        return kSucc;
     }
 
 /*
