@@ -1,46 +1,35 @@
-#include <assert.h>
-#include <stdio.h>
-#include <string>
-#include "include/engine.h"
-
-#include <thread>
-#include <mutex>
-#include <random>
 #include <iostream>
-#include <algorithm>
-#include <set>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <cassert>
 
-static const char kEnginePath[] = "/tmp/test_engine";
-static const char kDumpPath[] = "/tmp/test_dump";
+#include <pthread.h>
+#include <atomic>
+#include <mutex>
+#include <thread>
+
+#include <vector>
+#include <algorithm>
+
+#include "include/engine.h"
 
 using namespace polar_race;
 
-class DumpVisitor : public Visitor {
+template <typename T>
+class threadsafe_vector : public std::vector<T>
+{
 public:
-    DumpVisitor(int *kcnt)
-            : key_cnt_(kcnt) {}
-
-    ~DumpVisitor() {}
-
-    void Visit(const PolarString &key, const PolarString &value) {
-        printf("Visit %s --> %s\n", key.data(), value.data());
-        (*key_cnt_)++;
-    }
-
-private:
-    int *key_cnt_;
-};
-
-
-template<typename T>
-class threadsafe_vector : public std::vector<T> {
-public:
-    void add(const T &val) {
+    void add(const T& val)
+    {
         std::lock_guard<std::mutex> lock(mMutex);
         this->push_back(val);
     }
 
-    void add(T &&val) {
+    void add(T&& val)
+    {
         std::lock_guard<std::mutex> lock(mMutex);
         this->emplace_back(val);
     }
@@ -49,99 +38,76 @@ private:
     mutable std::mutex mMutex;
 };
 
-class RandNum_generator {
+class RandNum_generator
+{
 private:
-    RandNum_generator(const RandNum_generator &) = delete;
-
-    RandNum_generator &operator=(const RandNum_generator &) = delete;
-
+    RandNum_generator(const RandNum_generator&) = delete;
+    RandNum_generator& operator=(const RandNum_generator&) = delete;
     std::uniform_int_distribution<unsigned> u;
     std::default_random_engine e;
     int mStart, mEnd;
 public:
     // [start, end], inclusive, uniformally distributed
     RandNum_generator(int start, int end)
-            : u(start, end), e(std::hash<std::thread::id>()(std::this_thread::get_id())
-                               + std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch()).count()), mStart(start), mEnd(end) {}
+        : u(start, end)
+        , e(std::hash<std::thread::id>()(std::this_thread::get_id())
+            + std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count())
+        , mStart(start), mEnd(end)
+    {}
 
     // [mStart, mEnd], inclusive
-    unsigned nextNum() {
+    unsigned nextNum()
+    {
         return u(e);
     }
 
     // [0, max], inclusive
-    unsigned nextNum(unsigned max) {
+    unsigned nextNum(unsigned max)
+    {
         return unsigned((u(e) - mStart) / float(mEnd - mStart) * max);
     }
 };
 
-std::string random_str(RandNum_generator &rng, std::size_t strLen) {
+// randomly-sampled positions with the following Python code
+// "np.random.choice(np.arange(4096), 8, replace=False)"
+//
+// make sure that random_str and key_from_value use the same index array
+unsigned kRandomIdxes[]{  23, 3658, 2143,  583, 1952, 2262, 3790, 1612};
+std::string random_str(RandNum_generator& rng, std::size_t strLen)
+{
     std::string rs(strLen, ' ');
-    for (auto &ch : rs) {
-        ch = rng.nextNum();
+    for (auto idx : kRandomIdxes) {
+        rs[idx] = rng.nextNum();
     }
     return rs;
 }
-
-typedef unsigned long long hash64_t;
-
-hash64_t fnv1_hash_64(const std::string &str) {
-    static const hash64_t fnv_offset_basis = 14695981039346656037u;
-    static const hash64_t fnv_prime = 1099511628211u;
-    hash64_t hv = fnv_offset_basis;
-    for (auto ch : str) {
-        hv *= fnv_prime;
-        hv ^= ch;
-    }
-    return hv;
-}
-
-std::string hash_to_str(hash64_t hash) {
-    const int cnt = 8;
-    char val[cnt];
-    for (int i = 0; i < cnt; ++i) {
-        val[cnt - i - 1] = hash % 256;
-        hash /= 256;
-    }
-    return std::string(val, cnt);
-}
-
-std::string key_from_value(const std::string &val) {
+std::string key_from_value(const std::string& val)
+{
     std::string key(8, ' ');
-
-    key[0] = val[729];
-    key[1] = val[839];
-    key[2] = val[25];
-    key[3] = val[202];
-    key[4] = val[579];
-    key[5] = val[1826];
-    key[6] = val[369];
-    key[7] = val[2903];
-
+    for (unsigned i = 0; i < 8; ++i) {
+        key[i] = val[kRandomIdxes[i]];
+    }
     return key;
 }
 
-void write(Engine *engine, threadsafe_vector<std::string> &keys, unsigned numWrite) {
+void Write(Engine* engine, threadsafe_vector<std::string>& keys, unsigned numWrite)
+{
     RandNum_generator rng(0, 255);
     for (unsigned i = 0; i < numWrite; ++i) {
         std::string val(random_str(rng, 4096));
-
-        //std::string key = hash_to_str(fnv1_hash_64(val)); // strong hash, slow but barely any chance to duplicate
-        std::string key(key_from_value(val)); // random positions, faster but tiny chance to duplicate
-
+        std::string key(key_from_value(val));
         engine->Write(key, val);
         keys.add(key);
     }
 }
 
-void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsigned numRead) {
+void RandomRead(Engine* engine, const threadsafe_vector<std::string>& keys, unsigned numRead)
+{
     RandNum_generator rng(0, keys.size() - 1);
     for (unsigned i = 0; i < numRead; ++i) {
-        auto &key = keys[rng.nextNum()];
+        auto& key = keys[rng.nextNum()];
         std::string val;
         engine->Read(key, &val);
-        //if (key != hash_to_str(fnv1_hash_64(val))) {
         if (key != key_from_value(val)) {
             std::cout << "Random Read error: key and value not match" << std::endl;
             exit(-1);
@@ -149,104 +115,223 @@ void randomRead(Engine *engine, const threadsafe_vector<std::string> &keys, unsi
     }
 }
 
-//class MyVisitor : public Visitor
-//{
-//public:
-//	MyVisitor(const threadsafe_vector<std::string>& keys, unsigned start, unsigned& cnt)
-//			: mKeys(keys), mStart(start), mCnt(cnt)
-//	{}
-//
-//	~MyVisitor() {}
-//
-//	void Visit(const PolarString& key, const PolarString& value)
-//	{
-//		//if (key != hash_to_str(fnv1_hash_64(value.ToString()))) {
-//		if (key != key_from_value(value.ToString())) {
-//			std::cout << "Sequential Read error: key and value not match" << std::endl;
-//			exit(-1);
-//		}
-//		if (key != mKeys[mStart + mCnt]) {
-//			std::cout << "Sequential Read error: not an expected key" << std::endl;
-//			exit(-1);
-//		}
-//		mCnt += 1;
-//	}
-//
-//private:
-//	const threadsafe_vector<std::string>& mKeys;
-//	unsigned mStart;
-//	unsigned& mCnt;
-//};
-//
-//void sequentialRead(Engine* engine, const threadsafe_vector<std::string>& keys)
-//{
-//	RandNum_generator rng(0, keys.size() - 1);
-//	RandNum_generator rng1(10, 100);
-//
-//	unsigned lenKeys = keys.size();
-//	// Random ranges
-//	unsigned lenAccu = 0;
-//	while (lenAccu < lenKeys) {
-//		std::string lower, upper;
-//
-//		unsigned start = rng.nextNum();
-//		lower = keys[start];
-//
-//		unsigned len = rng1.nextNum();
-//		if (start + len >= lenKeys) {
-//			len = lenKeys - start;
-//		}
-//		if (start + len == lenKeys) {
-//			upper = "";
-//		} else {
-//			upper = keys[start + len];
-//		}
-//
-//		unsigned keyCnt = 0;
-//		MyVisitor visitor(keys, start, keyCnt);
-//		engine->Range(lower, upper, visitor);
-//		if (keyCnt != len) {
-//			std::cout << "Range size not match, expected: " << len
-//			          << " actual: " << keyCnt << std::endl;
-//			exit(-1);
-//		}
-//
-//		lenAccu += len;
-//	}
-//
-//	// Whole range traversal
-//	unsigned keyCnt = 0;
-//	MyVisitor visitor(keys, 0, keyCnt);
-//	engine->Range("", "", visitor);
-//	if (keyCnt != lenKeys) {
-//		std::cout << "Range size not match, expected: " << lenKeys
-//		          << " actual: " << keyCnt << std::endl;
-//		exit(-1);
-//	}
-//}
+class MyVisitor : public Visitor
+{
+public:
+    MyVisitor(const threadsafe_vector<std::string>& keys, unsigned start, unsigned& cnt)
+        : mKeys(keys), mStart(start), mCnt(cnt)
+    {}
 
-int main() {
-    auto numThreads = std::thread::hardware_concurrency();
-    std::cout << numThreads << std::endl;
+    ~MyVisitor() {}
 
+    void Visit(const PolarString& key, const PolarString& value)
+    {
+        if (key != key_from_value(value.ToString())) {
+            std::cout << "Sequential Read error: key and value not match" << std::endl;
+            exit(-1);
+        }
+        if (key != mKeys[mStart + mCnt]) {
+            std::cout << "Sequential Read error: not an expected key" << std::endl;
+            exit(-1);
+        }
+        mCnt += 1;
+    }
+
+private:
+    const threadsafe_vector<std::string>& mKeys;
+    unsigned mStart;
+    unsigned& mCnt;
+};
+
+void sequentialRead(Engine* engine, const threadsafe_vector<std::string>& keys)
+{
+    RandNum_generator rng(0, keys.size() - 1);
+    RandNum_generator rng1(10, 100);
+
+    unsigned lenKeys = keys.size();
+    // Random ranges
+    unsigned lenAccu = 0;
+    while (lenAccu < lenKeys) {
+        std::string lower, upper;
+
+        unsigned start = rng.nextNum();
+        lower = keys[start];
+
+        unsigned len = rng1.nextNum();
+        if (start + len >= lenKeys) {
+            len = lenKeys - start;
+        }
+        if (start + len == lenKeys) {
+            upper = "";
+        } else {
+            upper = keys[start + len];
+        }
+
+        unsigned keyCnt = 0;
+        MyVisitor visitor(keys, start, keyCnt);
+        engine->Range(lower, upper, visitor);
+        if (keyCnt != len) {
+            std::cout << "Range size not match, expected: " << len
+                      << " actual: " << keyCnt << std::endl;
+            exit(-1);
+        }
+
+        lenAccu += len;
+    }
+
+    // Whole range traversal
+    unsigned keyCnt = 0;
+    MyVisitor visitor(keys, 0, keyCnt);
+    engine->Range("", "", visitor);
+    if (keyCnt != lenKeys) {
+        std::cout << "Range size not match, expected: " << lenKeys
+                  << " actual: " << keyCnt << std::endl;
+        exit(-1);
+    }
+}
+
+#include <dirent.h>
+void removeDir(const std::string& dirPath)
+{
+    DIR* dir = opendir(dirPath.c_str());
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        //std::cout << entry->d_name << " " << entry->d_type << std::endl;
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+        std::string filePath(dirPath + "/" + entry->d_name);
+        struct stat fStat;
+        lstat(filePath.c_str(), &fStat);
+        if (S_ISDIR(fStat.st_mode)) {
+            removeDir(filePath);
+        } else if (S_ISREG(fStat.st_mode)){
+            std::cout << "Removing file: " << filePath << std::endl;
+            unlink(filePath.c_str());
+        }
+    }
+    closedir(dir);
+    std::cout << "Removing dir:  " << dirPath << std::endl;
+    rmdir(dirPath.c_str());
+}
+
+void test(const std::string&, unsigned, unsigned);
+void test_with_kill(const std::string&, unsigned, unsigned);
+
+int main(int argc, char** argv)
+{
+    if(argc < 2){
+        std::cout << "Too less ARGS!!" << std::endl;
+        abort();
+    }
+    std::string dir(argv[1]);
+
+    auto numThreads = 4;
+    unsigned numWrite = 1000;
+    std::cout << numThreads << " " << numWrite << std::endl;
+
+    bool withKill = true;
+    if (withKill)
+        test_with_kill(dir, numThreads, numWrite);
+    else
+        test(dir, numThreads, numWrite);
+
+    removeDir(dir);
+
+    return 0;
+}
+
+void test(const std::string& dir, unsigned numThreads, unsigned numWrite)
+{
     Engine *engine = NULL;
+    RetCode ret = Engine::Open(dir.c_str(), &engine);
+    assert(ret == kSucc);
 
     threadsafe_vector<std::string> keys;
+    keys.reserve(numThreads * numWrite);
 
     // Write
-    unsigned numWrite = 10000, numKills = 4;
+    auto writeStart = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> writers;
+    for (int i = 0; i < numThreads; ++i) {
+        writers.emplace_back(std::thread(Write, engine, std::ref(keys), numWrite));
+    }
+    for (auto& th : writers) {
+        th.join();
+    }
+    writers.clear();
+
+    auto writeEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Writing takes: "
+              << std::chrono::duration<double, std::milli>(writeEnd - writeStart).count()
+              << " milliseconds" << std::endl;
+
+
+    // Random Read
+    auto rreadStart = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> rreaders;
+    for (int i = 0; i < numThreads; ++i) {
+        rreaders.emplace_back(std::thread(RandomRead, engine, std::cref(keys), numWrite));
+    }
+    for (auto& th : rreaders) {
+        th.join();
+    }
+    rreaders.clear();
+
+    auto rreadEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Random read takes: "
+              << std::chrono::duration<double, std::milli>(rreadEnd - rreadStart).count()
+              << " milliseconds" << std::endl;
+
+
+    // Sequential Read
+    std::cout << "Total: " << keys.size() << std::endl;
+    std::sort(keys.begin(), keys.end());
+    auto last = std::unique(keys.begin(), keys.end());
+    keys.erase(last, keys.end());
+    std::cout << "Unique: " << keys.size() << std::endl;
+
+    auto sreadStart = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> sreaders;
+    for (int i = 0; i < numThreads; ++i) {
+        sreaders.emplace_back(std::thread(sequentialRead, engine, std::cref(keys)));
+    }
+    for (auto& th : sreaders) {
+        th.join();
+    }
+    sreaders.clear();
+
+    auto sreadEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Sequential read takes: "
+              << std::chrono::duration<double, std::milli>(sreadEnd - sreadStart).count()
+              << " milliseconds" << std::endl;
+
+    delete engine;
+}
+
+void test_with_kill(const std::string& dir, unsigned numThreads, unsigned numWrite)
+{
+    Engine *engine = NULL;
+
+    unsigned numKills = 4;
+    threadsafe_vector<std::string> keys;
+    keys.reserve(numThreads * numWrite);
+
+    // Write
     double duration = 0;
     for (int nk = 0; nk < numKills; ++nk) {
-        RetCode ret = Engine::Open(kEnginePath, &engine);
-        assert (ret == kSucc);
+        RetCode ret = Engine::Open(dir.c_str(), &engine);
+        assert(ret == kSucc);
 
         auto writeStart = std::chrono::high_resolution_clock::now();
 
         std::vector<std::thread> writers;
         for (int i = 0; i < numThreads; ++i) {
-            writers.emplace_back(std::thread(write, engine, std::ref(keys), numWrite / numKills));
+            writers.emplace_back(std::thread(Write, engine, std::ref(keys), numWrite / numKills));
         }
-        for (auto &th : writers) {
+        for (auto& th : writers) {
             th.join();
         }
         writers.clear();
@@ -261,25 +346,17 @@ int main() {
               << duration
               << " milliseconds" << std::endl;
 
-
-    RetCode ret = Engine::Open(kEnginePath, &engine);
+    RetCode ret = Engine::Open(dir.c_str(), &engine);
     assert (ret == kSucc);
-
-    std::cout << keys.size() << std::endl;
-    std::sort(keys.begin(), keys.end());
-    auto last = std::unique(keys.begin(), keys.end());
-    keys.erase(last, keys.end());
-    //std::cout << engine->size() << " == " << keys.size() << std::endl;
 
     // Random Read
     auto rreadStart = std::chrono::high_resolution_clock::now();
 
-    unsigned numRead = 10000;
     std::vector<std::thread> rreaders;
     for (int i = 0; i < numThreads; ++i) {
-        rreaders.emplace_back(std::thread(randomRead, engine, std::cref(keys), numRead));
+        rreaders.emplace_back(std::thread(RandomRead, engine, std::cref(keys), numWrite));
     }
-    for (auto &th : rreaders) {
+    for (auto& th : rreaders) {
         th.join();
     }
     rreaders.clear();
@@ -290,24 +367,28 @@ int main() {
               << " milliseconds" << std::endl;
 
 
-//	// Sequential Read
-//	auto sreadStart = std::chrono::high_resolution_clock::now();
-//
-//	std::vector<std::thread> sreaders;
-//	for (int i = 0; i < numThreads; ++i) {
-//		sreaders.emplace_back(std::thread(sequentialRead, engine, std::cref(keys)));
-//	}
-//	for (auto& th : sreaders) {
-//		th.join();
-//	}
-//	sreaders.clear();
-//
-//	auto sreadEnd = std::chrono::high_resolution_clock::now();
-//	std::cout << "Sequential read takes: "
-//	          << std::chrono::duration<double, std::milli>(sreadEnd - sreadStart).count()
-//	          << " milliseconds" << std::endl;
+    // Sequential Read
+    std::cout << "Total: " << keys.size() << std::endl;
+    std::sort(keys.begin(), keys.end());
+    auto last = std::unique(keys.begin(), keys.end());
+    keys.erase(last, keys.end());
+    std::cout << "Unique: " << keys.size() << std::endl;
+
+    auto sreadStart = std::chrono::high_resolution_clock::now();
+
+    std::vector<std::thread> sreaders;
+    for (int i = 0; i < numThreads; ++i) {
+        sreaders.emplace_back(std::thread(sequentialRead, engine, std::cref(keys)));
+    }
+    for (auto& th : sreaders) {
+        th.join();
+    }
+    sreaders.clear();
+
+    auto sreadEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Sequential read takes: "
+              << std::chrono::duration<double, std::milli>(sreadEnd - sreadStart).count()
+              << " milliseconds" << std::endl;
 
     delete engine;
-
-    return 0;
 }

@@ -124,3 +124,4 @@ engine_race/.cquery
 
 # End of https://www.gitignore.io/api/c++,jetbrains
 
+engine_race/.vscode
