@@ -191,6 +191,8 @@ namespace polar_race {
             StartTimer(&t);
             Buckets[(*reinterpret_cast<uint64_t *>(rr->key)) / (UINT64_MAX / BUCKET_NUMBER)]->put(file_offset,
                                                                                                   rr->value);
+            qLogDebugfmt("RequestProcessor[%s]: Bucket OK, selected is %lu", LDOMAIN(recvaddr.c_str()),
+            (*reinterpret_cast<uint64_t *>(rr->key)) / (UINT64_MAX / BUCKET_NUMBER));
             tp->spin_commit += GetTimeElapsed(&t);
             StartTimer(&t);
             GlobalIndexStore->put(*reinterpret_cast<uint64_t *>(rr->key), file_offset);
