@@ -365,11 +365,15 @@ namespace polar_race {
         ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
                                                  &(rsaddr[curraff / 2]));
         if (sv == -1) {
+            qLogFailfmt("Engine::Write failed to send wr request: MB[%d]:%s", requestfds[curraff].desc, strerror(errno));
+            abort();
             return kIOError;
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[curraff].getOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
         if (rv == -1) {
+            qLogFailfmt("Engine::Write failed to recv wr response: MB[%d]:%s", requestfds[curraff].desc, strerror(errno));
+            abort();
             return kIOError;
         }
         return kSucc;
