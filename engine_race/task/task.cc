@@ -116,7 +116,7 @@ namespace polar_race {
                                               sizeof(AtomicUnorderedInsertMap::Slot))
                 );
 
-                std::sort(GlobalIndexStore->hashmap.slots_,
+                std::sort(GlobalIndexStore->hashmap.slots_ + 1,
                           GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_ + 1);
 
                 qLogDebug("HeartBeatChecker: Sort Done.");
