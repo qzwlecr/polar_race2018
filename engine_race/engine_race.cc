@@ -139,7 +139,7 @@ namespace polar_race {
             MetaFd = open(META_PATH.c_str(), O_RDWR | O_CREAT, 0666);
             NextIndex = 0;
             for (int i = 0; i < BUCKET_NUMBER; i++) {
-                BucketLinkLists[i]->sizes.push_back(0);
+                BucketLinkLists[i]->sizes.push_back(BUCKET_BUFFER_LENGTH / VAL_SIZE);
                 auto index = NextIndex.fetch_add(FIRST_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
             }
@@ -159,7 +159,7 @@ namespace polar_race {
             NextIndex = data_size;
             BucketLinkList::unpersist(MetaFd);
             for (int i = 0; i < BUCKET_NUMBER; i++) {
-                BucketLinkLists[i]->sizes.push_back(0);
+                BucketLinkLists[i]->sizes.push_back(BUCKET_BUFFER_LENGTH / VAL_SIZE);
                 auto index = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
             }

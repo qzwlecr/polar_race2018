@@ -20,10 +20,10 @@ namespace polar_race {
             links.back() + (links.size() == 1 ? FIRST_BUCKET_LENGTH : OTHER_BUCKET_LENGTH)) {
             uint64_t next_head = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
             links.push_back(next_head);
-            sizes.push_back(0);
+            sizes.push_back(BUCKET_BUFFER_LENGTH / VAL_SIZE);
             return next_head;
         } else {
-            sizes.back()++;
+            sizes.back() += BUCKET_BUFFER_LENGTH / VAL_SIZE;
             return head + BUCKET_BUFFER_LENGTH;
         }
     }

@@ -117,7 +117,7 @@ namespace polar_race {
                 );
 
                 std::sort(GlobalIndexStore->hashmap.slots_,
-                          GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_);
+                          GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_ + 1);
 
                 qLogDebug("HeartBeatChecker: Sort Done.");
 
