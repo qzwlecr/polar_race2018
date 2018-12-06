@@ -375,6 +375,10 @@ void test_with_kill(const std::string& dir, unsigned numThreads, unsigned numWri
     keys.erase(last, keys.end());
     std::cout << "Unique: " << keys.size() << std::endl;
 
+    delete engine;
+    ret = Engine::Open(dir.c_str(), &engine);
+    assert (ret == kSucc);
+
     auto sreadStart = std::chrono::high_resolution_clock::now();
 
     std::vector<std::thread> sreaders;

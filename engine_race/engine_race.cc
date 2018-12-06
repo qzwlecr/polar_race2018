@@ -462,6 +462,7 @@ namespace polar_race {
         void load_globkeytab();
         void unload_globkeytab();
         const char* read_globkeytab(uint32_t elemidx);
+        uint32_t seek_globkeytab(const char* k);
     } rs;
     RetCode EngineRace::Range(const PolarString &lower, const PolarString &upper,
                               Visitor &visitor) {
@@ -503,54 +504,37 @@ namespace polar_race {
             META_PATH_SUFFIX.c_str(), VALUES_PATH_SUFFIX.c_str(), RANGE_CACHE_SIZE);
             qLogSucc("FirstRanger: Creating RangeCache..");
             rs.rcache = new RangeCache(rs.metafd, rs.backfd, RANGE_CACHE_SIZE);
-            qLogSucc("FirstRanger: Loading GlobalIndex");
-            rs.load_globidx();
-            if(lower.ToString() != ""){
-                loweroff = rs.read_globidx(lower.data());
-            }
-            if(upper.ToString() != ""){
-                upperoff = rs.read_globidx(upper.data());
-            }
-            rs.globidx_completed.fetch_add(1);
-            while(rs.globidx_completed != 64);
-            rs.unload_globidx();
+            qLogSucc("FirstRanger: Loading Tables");
             rs.load_globofftab();
             rs.load_globkeytab();
             if(lower.ToString() == ""){
                 loweroff = rs.read_globofftab(0);
+                nextelem = 0;
+            } else {
+                nextelem = rs.seek_globkeytab(lower.data());
+                loweroff = rs.read_globofftab(nextelem);
             }
             if(upper.ToString() == ""){
                 upperoff = rs.read_globofftab(indexer_size - 1);
-            }
-            for(uint32_t i = 0; i < indexer_size; i++){
-                if(rs.read_globofftab(i) == loweroff){
-                    nextelem = i;
-                    break;
-                }
+            }else{
+                upperoff = rs.read_globofftab(rs.seek_globkeytab(upper.data()));
             }
             // differential part ends here..
         } else {
             if(myid == (CONCURRENT_QUERY - 1)){
                 rs.state_running = true;
             }
-            if(lower.ToString() != ""){
-                loweroff = rs.read_globidx(lower.data());
-            }
-            if(upper.ToString() != ""){
-                upperoff = rs.read_globidx(upper.data());
-            }
-            rs.globidx_completed.fetch_add(1);
             if(lower.ToString() == ""){
                 loweroff = rs.read_globofftab(0);
+                nextelem = 0;
+            } else {
+                nextelem = rs.seek_globkeytab(lower.data());
+                loweroff = rs.read_globofftab(nextelem);
             }
             if(upper.ToString() == ""){
                 upperoff = rs.read_globofftab(indexer_size - 1);
-            }
-            for(uint32_t i = 0; i < indexer_size; i++){
-                if(rs.read_globofftab(i) == loweroff){
-                    nextelem = i;
-                    break;
-                }
+            }else{
+                upperoff = rs.read_globofftab(rs.seek_globkeytab(upper.data()));
             }
         }
         // start the reading work..
@@ -686,5 +670,17 @@ namespace polar_race {
             return 0;
         }
         return (char*)&(GlobalKeyTable->data[elemidx]);
+    }
+
+    uint32_t RangeStats::seek_globkeytab(const char* k){
+        while(GlobalKeyTable == nullptr);
+        uint64_t ck = *(const uint64_t*)k;
+        for(uint32_t i = 0; i < indexer_size; i++){
+            if(ck == GlobalKeyTable->data[i]){
+                return i;
+            }
+        }
+        qLogWarn("GlobalKeyTableSeeker: seeking failed!!");
+        return -1;
     }
 }  // namespace polar_race
