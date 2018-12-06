@@ -58,6 +58,7 @@ void CacheBlock::load(int fdesc){
         qLogFailfmt("CacheBlock[%lu, %lu]: cannot read from disk: %s(%ld)", begin, end, strerror(errno), rdsz);
         abort();
     }
+    loaded = true;
 }
 
 RangeCache::RangeCache(int mfd, int bfd, uint32_t mxsize):

@@ -541,10 +541,13 @@ namespace polar_race {
         while(true){
             off_t rdoffset = rs.read_globofftab(nextelem);
             rdkey = rs.read_globkeytab(nextelem);
+            qLogInfofmt("Ranger: Try Key %s => offset %ld", KVArrayDump(rdkey, 8).c_str(), rdoffset);
             if(!rs.rcache->access(rdoffset, rdval)){
                 qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
                 abort();
             }
+            qLogInfofmt("Ranger: Try Key %s => offset %ld => Value %s", KVArrayDump(rdkey, 8).c_str(), rdoffset,
+            KVArrayDump(rdval, 8).c_str());
             visitor.Visit(PolarString(rdkey, KEY_SIZE), PolarString(rdval, VAL_SIZE));
             if(rdoffset == upperoff) break;
             nextelem ++;
