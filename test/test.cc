@@ -73,7 +73,7 @@ public:
 // "np.random.choice(np.arange(4096), 8, replace=False)"
 //
 // make sure that random_str and key_from_value use the same index array
-unsigned kRandomIdxes[]{  23, 3658, 2143,  583, 1952, 2262, 3790, 1612};
+unsigned kRandomIdxes[]{0, 1, 2, 3, 4, 5, 6, 7};
 std::string random_str(RandNum_generator& rng, std::size_t strLen)
 {
     std::string rs(strLen, ' ');

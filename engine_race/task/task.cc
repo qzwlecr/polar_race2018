@@ -201,8 +201,8 @@ namespace polar_race {
                 continue;
             }
             qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
-            qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
-                         *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
+            qLogDebugfmt("RequestProcessor[%s]: K %s => V %s", LDOMAIN(recvaddr.c_str()),
+                         KVArrayDump(rr->key, 8).c_str(), KVArrayDump(rr->value, 8).c_str());
             uint64_t file_offset;
             // put into GlobIdx
             StartTimer(&t);
