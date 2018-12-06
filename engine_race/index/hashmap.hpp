@@ -296,8 +296,9 @@ namespace polar_race {
             }
 
             bool operator<(const Slot &another) const {
-                int answer = memcmp(&(this->raw_.first), &(another.raw_.first), 8);
-                return answer >= 0;
+                return this->raw_.first > another.raw_.first;
+//                int answer = memcmp(&(this->raw_.first), &(another.raw_.first), 8);
+//                return answer >= 0;
             }
 
             Slot(const Slot &another) : raw_(another.raw_) {

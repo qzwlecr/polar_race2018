@@ -10,6 +10,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <random>
 
 #include <vector>
 #include <algorithm>

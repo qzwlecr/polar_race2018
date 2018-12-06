@@ -109,8 +109,18 @@ namespace polar_race {
                     std::cout << "--------------------ThreadId = " << i << "----------------" << std::endl;
                 }
 
+                qLogDebugfmt("HeartBeatChecker: slot start = %lx, length = %lu, slot end = %lx",
+                             &(GlobalIndexStore->hashmap.slots_),
+                             GlobalIndexStore->hashmap.numSlots_,
+                             (unsigned long) (&(GlobalIndexStore->hashmap.slots_) +
+                                              GlobalIndexStore->hashmap.numSlots_ *
+                                              sizeof(AtomicUnorderedInsertMap::Slot))
+                );
+
                 std::sort(GlobalIndexStore->hashmap.slots_,
                           GlobalIndexStore->hashmap.slots_ + GlobalIndexStore->hashmap.numSlots_);
+
+                qLogDebug("HeartBeatChecker: Sort Done.");
 
                 uint32_t *sorted_offset = (uint32_t *) malloc(HASH_MAP_SIZE * sizeof(uint32_t));
                 uint64_t index = 0;
@@ -145,7 +155,7 @@ namespace polar_race {
                 exit(0);
             }
             // not very ok exactly..
-            int rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
+            ssize_t rdv = hbcmb.getOne(reinterpret_cast<char *>(&hbmagic), sizeof(HB_MAGIC), &hbaddr);
             qLogDebug("HeartBeatChecker: beat!");
             if (UNLIKELY(rdv == -1)) {
                 qLogFailfmt("HeartBeatChecker unexpected MailBox Get Failure: %s", STRERR);
@@ -183,6 +193,14 @@ namespace polar_race {
                 }
                 attached = true;
             }
+            StartTimer(&t);
+            ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+            tp->uds_rd += GetTimeElapsed(&t);
+            if (UNLIKELY(gv != sizeof(RequestResponse))) {
+                qLogFailfmt("RequestProcessor[%s]: getRequest failed or incomplete: %s(%ld)", LDOMAIN(recvaddr.c_str()),
+                            STRERR, gv);
+                continue;
+            }
             qLogDebugfmt("ReqeustProcessor[%s]: WR !", LDOMAIN(recvaddr.c_str()));
             qLogDebugfmt("RequestProcessor[%s]: K %hu => V %hu", LDOMAIN(recvaddr.c_str()),
                          *reinterpret_cast<uint16_t *>(rr->key), *reinterpret_cast<uint16_t *>(rr->value));
@@ -202,7 +220,7 @@ namespace polar_race {
             qLogDebugfmt("RequestProcessor[%s]: Write transcation committed.", LDOMAIN(recvaddr.c_str()));
             rr->type = RequestType::TYPE_OK;
             StartTimer(&t);
-            int sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
+            ssize_t sv = reqmb.sendOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
             tp->uds_wr += GetTimeElapsed(&t);
             if (sv == -1) {
                 qLogFailfmt("ReqeustProcessor[%s]: Send Response fail: %s", LDOMAIN(recvaddr.c_str()), STRERR);

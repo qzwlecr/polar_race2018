@@ -303,6 +303,7 @@ namespace polar_race {
                     }
                     for (int i = 0; i < BUCKET_NUMBER; i++) {
                         Buckets[i] = new Bucket(i);
+                        Buckets[i]->head_index = BucketLinkLists[i]->links.back();
                     }
                     size_t pagesize = (size_t) getpagesize();
                     for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {

@@ -26,7 +26,7 @@ namespace polar_race {
 
     void Bucket::put(uint64_t &location, char *value) {
         uint64_t index = next_index.fetch_add(VAL_SIZE);
-        if (index >= head_index + VAL_SIZE) {
+        if (index >= head_index + BUCKET_BUFFER_LENGTH) {
             uint64_t num = 0;
             bool desired;
             do {
