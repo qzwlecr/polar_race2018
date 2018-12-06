@@ -20,7 +20,6 @@ namespace polar_race {
     const int BUCKET_NUMBER = 512;
     const int BUCKET_BUFFER_LENGTH = 128 * 4096;
     const int BUCKET_BACKUP_NUMBER = 64;
-    const int WRITE_CONCURRENCY = 16;
     const int FIRST_BUCKET_LENGTH = 400 * 1024 * 1024;
     const int OTHER_BUCKET_LENGTH = 100 * 1024 * 1024;
     const uint64_t COMMIT_QUEUE_LENGTH = 4096;

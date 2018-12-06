@@ -29,12 +29,12 @@ namespace polar_race {
     }
 
     void BucketLinkList::unpersist(int fd) {
-        int size;
+        size_t size;
         BucketLinkList::checker.clear();
-        for (int i = 0; i < BUCKET_NUMBER; i++) {
+        for (size_t i = 0; i < BUCKET_NUMBER; i++) {
             read(fd, &size, sizeof(size));
             uint64_t index, sizee;
-            for (int j = 0; j < size; ++j) {
+            for (size_t j = 0; j < size; ++j) {
                 read(fd, &index, sizeof(index));
                 BucketLinkLists[i]->links.push_back(index);
                 read(fd, &sizee, sizeof(sizee));
@@ -46,7 +46,7 @@ namespace polar_race {
     }
 
     void BucketLinkList::persist(int fd) {
-        for (int i = 0; i < BUCKET_NUMBER; i++) {
+        for (size_t i = 0; i < BUCKET_NUMBER; i++) {
             size_t size = BucketLinkLists[i]->links.size();
             write(fd, &size, sizeof(size_t));
             for (size_t j = 0; j < size; ++j) {
@@ -54,7 +54,6 @@ namespace polar_race {
                 write(fd, &(BucketLinkLists[i]->sizes[j]), sizeof(uint64_t));
             }
         }
-
     }
 
     int BucketLinkList::check_location(uint64_t offset) {

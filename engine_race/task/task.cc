@@ -88,7 +88,6 @@ namespace polar_race {
                 qLogFail("HeartBeatChecker: Timed out.");
                 ExitSign = true;
                 // do clean work
-                delete BucketThreadPool;
                 for (int i = 0; i < BUCKET_NUMBER; i++) {
                     delete Buckets[i];
                 }

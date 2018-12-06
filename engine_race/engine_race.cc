@@ -154,6 +154,8 @@ namespace polar_race {
                 qLogFailfmt("Startup: Read indexer size failed: %s", strerror(errno));
                 abort();
             }
+            qLogDebugfmt("Startup: Read file size: %lu", data_size);
+            qLogDebugfmt("Startup: Read indexer size: %lu", indexer_size);
             NextIndex = data_size;
             BucketLinkList::unpersist(MetaFd);
             for (int i = 0; i < BUCKET_NUMBER; i++) {
@@ -162,7 +164,7 @@ namespace polar_race {
                 BucketLinkLists[i]->links.push_back(index);
             }
         }
-        ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_APPEND | O_SYNC | O_CREAT | O_DIRECT, 0666);
+        ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_SYNC |  O_DIRECT, 0666);
         valuesfdr = open(VALUES_PATH.c_str(), O_NOATIME);
 
         if (posix_fallocate(ValuesFd, 0, FILE_SIZE)) {
@@ -304,12 +306,12 @@ namespace polar_race {
                     for (int i = 0; i < BUCKET_NUMBER; i++) {
                         Buckets[i] = new Bucket(i);
                         Buckets[i]->head_index = BucketLinkLists[i]->links.back();
+                        Buckets[i]->next_index = Buckets[i]->head_index;
                     }
                     size_t pagesize = (size_t) getpagesize();
                     for (int i = 0; i < BUCKET_BACKUP_NUMBER; i++) {
                         BackupBuffer[i] = (char *) memalign(pagesize, BUCKET_BUFFER_LENGTH);
                     }
-                    BucketThreadPool = new thread_pool(WRITE_CONCURRENCY);
                     qLogInfofmt("RequestHandlerConfigurator: %d Handler threads..", HANDLER_THREADS);
                     for (int i = 0; i < HANDLER_THREADS; i++) {
                         qLogInfofmt("RequestHander: Starting Handler thread %d", i);
