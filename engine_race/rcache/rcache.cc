@@ -13,13 +13,12 @@ using namespace std;
 
 namespace polar_race{
 
-CacheBlock::CacheBlock(off_t b, off_t e, uint32_t mxaccess){
+CacheBlock::CacheBlock(off_t b, off_t e, uint32_t buckid){
     cachedata = nullptr;
     begin = b;
     end = e;
     loaded = false;
-    accessed = 0;
-    maxaccessed = mxaccess;
+    belongs = buckid;
 }
 
 CacheBlock::~CacheBlock(){
@@ -41,9 +40,6 @@ int CacheBlock::access(off_t position, void* buffer){
         return 0;
     }
     memcpy(buffer, cachedata + (position - begin), VAL_SIZE);
-    if(accessed.fetch_add(1) + 1 >= maxaccessed){
-        return 2;
-    }
     return 1;
 }
 
@@ -62,7 +58,11 @@ void CacheBlock::load(int fdesc){
 }
 
 RangeCache::RangeCache(int mfd, int bfd, uint32_t mxsize):
-backfd(bfd), metafd(mfd), maxsize(mxsize), currsize(0){}
+backfd(bfd), metafd(mfd), maxsize(mxsize), currsize(0){
+    for(int i = 0; i < BUCKET_NUMBER; i++){
+        across_counter[i] = 0;
+    }
+}
 
 RangeCache::~RangeCache(){
     for(auto &x: blklist){
@@ -111,7 +111,7 @@ bool RangeCache::buck_findblk(BucketLinkList* buckptr, off_t position, off_t &fb
     return false;
 }
 
-bool RangeCache::access(off_t position, void *buffer){
+bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
     blistmu.rdlock();
     auto cbptri = blklist_exist(position);
     auto cbptr = (cbptri == blklist.end() ? nullptr : *cbptri);
@@ -120,6 +120,7 @@ bool RangeCache::access(off_t position, void *buffer){
         // cache miss
         qLogDebugfmt("RangeCache: miss at %ld", position);
         int buckid = BucketLinkList::check_location(position);
+        bn = buckid;
         qLogDebugfmt("RangeCache: going to load from bucket %d", buckid);
         off_t cblkbegin = 0;
         uint64_t cblklen = 0;
@@ -148,7 +149,7 @@ bool RangeCache::access(off_t position, void *buffer){
             cbptr = (cbptri == blklist.end() ? nullptr : *cbptri);
             if(cbptr == nullptr){
                 // then we can do real memory allocation safely
-                cbptr = new CacheBlock(cblkbegin, cblkbegin + cblklen, (cblklen / VAL_SIZE) * CONCURRENT_QUERY);
+                cbptr = new CacheBlock(cblkbegin, cblkbegin + cblklen, buckid);
                 cbptr->load(backfd);
                 qLogDebug("RangeCache: CacheBlock allocated.");
                 blklist.push_back(cbptr);
@@ -170,21 +171,32 @@ bool RangeCache::access(off_t position, void *buffer){
         qLogFail("RangeCache: Aborting..");
         abort();
     }
-    // acrv == 1 means it's a normal OK. no special handling needed.
-    if(acrv == 2){
-        qLogDebugfmt("RangeCache: Block %ld invalidated", (*cbptri)->begin);
-        deallocate((*cbptri)->size());
+    return true;
+}
+
+void RangeCache::across(uint32_t buckno){
+    if(buckno >= BUCKET_NUMBER){
+        qLogFailfmt("RangeCacheAcrosser: Reported acrossed bucket %d, while it's not even possible.", buckno);
+        abort();
+    }
+    int acrc = across_counter[buckno].fetch_add(1) + 1;
+    qLogSuccfmt("RangeCacheAcrosser: %d acrossed %d time(s).", buckno, acrc);
+    if(acrc == CONCURRENT_QUERY){
+        qLogSuccfmt("RangeCacheAcrosser: bucket %d invalidated!!", buckno);
         blistmu.wrlock();
-        auto cbptri = blklist_exist(position);
-        if(cbptri != blklist.end()){
-            delete *cbptri;
-            blklist.erase(cbptri);
-        } else {
-            qLogWarn("RangeCache: re-deallocation detected: please check invalidation log!");
+        for(auto it = blklist.begin(); it != blklist.end();){
+            qLogDebugfmt("RangeCacheAcrosser: Try Block [%d]%ld(+%ld)", (*it)->buck(), (*it)->begin, (*it)->size());
+            if((*it)->buck() == buckno){
+                qLogSuccfmt("RangeCacheAcrosser: Block %ld(+%ld) freed", (*it)->begin, (*it)->size());
+                deallocate((*it)->size());
+                delete *it;
+                it = blklist.erase(it);
+            } else {
+                it++;
+            }
         }
         blistmu.unlock();
     }
-    return true;
 }
 
 

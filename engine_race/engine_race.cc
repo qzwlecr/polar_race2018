@@ -445,7 +445,7 @@ namespace polar_race {
     struct RangeStats {
         std::atomic_int concur_ranges;
         std::atomic_int globidx_completed;
-        bool state_running;
+        volatile bool state_running;
         RangeCache* rcache;
         volatile bool prep_ok;
         int metafd;
@@ -543,13 +543,19 @@ namespace polar_race {
             qLogSuccfmt("Ranger[%d]: Initialized!", myid);
         }
         // start the reading work..
+        uint32_t buckno = 0;
         while(true){
             off_t rdoffset = rs.read_globofftab(nextelem);
             rdkey = rs.read_globkeytab(nextelem);
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset);
-            if(!rs.rcache->access(rdoffset, rdval)){
+            uint32_t tbuckno = 0;
+            if(!rs.rcache->access(rdoffset, rdval, tbuckno)){
                 qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
                 abort();
+            }
+            if(buckno != tbuckno){
+                rs.rcache->across(buckno);
+                buckno = tbuckno;
             }
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld => Value %s", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset,
             KVArrayDump(rdval, 8).c_str());

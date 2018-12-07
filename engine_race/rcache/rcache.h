@@ -22,20 +22,21 @@ class CacheBlock {
     // return 0: failed 1: success 2: you need to free this
     int access(off_t position, void* buffer);
     void load(int fdesc);
-    inline CacheBlock(off_t b, off_t e, uint32_t maxaccess);
+    inline uint32_t buck(){return belongs;};
+    inline CacheBlock(off_t b, off_t e, uint32_t belongs);
     inline ~CacheBlock();
     off_t begin;
     private:
     off_t end;
     uint8_t* cachedata;
     bool loaded;
-    std::atomic_uint accessed;
-    uint32_t maxaccessed;
+    uint32_t belongs;
 };
 
 class RangeCache {
     public:
-    bool access(off_t position, void* buffer);
+    bool access(off_t position, void* buffer, uint32_t& bn);
+    void across(uint32_t bn);
     RangeCache(int metafd, int backfd, uint32_t mxsize);
     ~RangeCache();
     private:
@@ -49,6 +50,7 @@ class RangeCache {
     int metafd;
     uint32_t maxsize;
     std::atomic_uint currsize;
+    std::atomic_uint across_counter[BUCKET_NUMBER];
 };
 
 };
