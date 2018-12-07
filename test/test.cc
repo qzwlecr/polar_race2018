@@ -119,8 +119,8 @@ void RandomRead(Engine* engine, const threadsafe_vector<std::string>& keys, unsi
 class MyVisitor : public Visitor
 {
 public:
-    MyVisitor(const threadsafe_vector<std::string>& keys, unsigned start, unsigned& cnt)
-        : mKeys(keys), mStart(start), mCnt(cnt)
+    MyVisitor(unsigned& cnt)
+        : mCnt(cnt), accessd(false)
     {}
 
     ~MyVisitor() {}
@@ -131,61 +131,42 @@ public:
             std::cout << "Sequential Read error: key and value not match" << std::endl;
             exit(-1);
         }
-        if (key != mKeys[mStart + mCnt]) {
+        // comparation detector!!
+        if (accessd && !((*(uint64_t*)key.data()) >= lastk)) {
             std::cout << "Sequential Read error: not an expected key" << std::endl;
+            std::cout << "Previous " << lastk << " Current " << *(uint64_t*)key.data() << std::endl;
             exit(-1);
         }
-        mCnt += 1;
+        lastk = *(uint64_t*)key.data();
+        accessd = true;
+        mCnt++;
     }
 
 private:
-    const threadsafe_vector<std::string>& mKeys;
     unsigned mStart;
     unsigned& mCnt;
+    bool accessd;
+    uint64_t lastk;
 };
 
 void sequentialRead(Engine* engine, const threadsafe_vector<std::string>& keys)
 {
     RandNum_generator rng(0, keys.size() - 1);
     RandNum_generator rng1(10, 100);
-
-    unsigned lenKeys = keys.size();
-    // Random ranges
-    unsigned lenAccu = 0;
-    while (lenAccu < lenKeys) {
-        std::string lower, upper;
-
-        unsigned start = rng.nextNum();
-        lower = keys[start];
-
-        unsigned len = rng1.nextNum();
-        if (start + len >= lenKeys) {
-            len = lenKeys - start;
-        }
-        if (start + len == lenKeys) {
-            upper = "";
-        } else {
-            upper = keys[start + len];
-        }
-
-        unsigned keyCnt = 0;
-        MyVisitor visitor(keys, start, keyCnt);
-        engine->Range(lower, upper, visitor);
-        if (keyCnt != len) {
-            std::cout << "Range size not match, expected: " << len
-                      << " actual: " << keyCnt << std::endl;
-            exit(-1);
-        }
-
-        lenAccu += len;
-    }
-
     // Whole range traversal
     unsigned keyCnt = 0;
-    MyVisitor visitor(keys, 0, keyCnt);
+    MyVisitor visitor(keyCnt);
     engine->Range("", "", visitor);
-    if (keyCnt != lenKeys) {
-        std::cout << "Range size not match, expected: " << lenKeys
+    if (keyCnt != keys.size()) {
+        std::cout << "Range size not match, expected: " << keys.size()
+                  << " actual: " << keyCnt << std::endl;
+        exit(-1);
+    }
+    keyCnt = 0;
+    MyVisitor visitor2x(keyCnt);
+    engine->Range("", "", visitor2x);
+    if (keyCnt != keys.size()) {
+        std::cout << "Range size not match, expected: " << keys.size()
                   << " actual: " << keyCnt << std::endl;
         exit(-1);
     }
@@ -374,6 +355,10 @@ void test_with_kill(const std::string& dir, unsigned numThreads, unsigned numWri
     auto last = std::unique(keys.begin(), keys.end());
     keys.erase(last, keys.end());
     std::cout << "Unique: " << keys.size() << std::endl;
+
+    delete engine;
+    ret = Engine::Open(dir.c_str(), &engine);
+    assert (ret == kSucc);
 
     auto sreadStart = std::chrono::high_resolution_clock::now();
 

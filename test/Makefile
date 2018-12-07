@@ -4,4 +4,4 @@ all:
 
 clean:
 	-rm test test_with_kill
-	-rm -rf test_engine
+	-rm -rf engine_test
