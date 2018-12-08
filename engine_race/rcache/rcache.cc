@@ -1,14 +1,20 @@
 #include "rcache.h"
 
 #include "../format/log.h"
+#include "../timer/timer.h"
 
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 extern "C"{
 #include <unistd.h>
 }
 
+#ifdef Q_LOG_LOGLEVEL
+#undef Q_LOG_LOGLEVEL
+#endif
+#define Q_LOG_LOGLEVEL 0
 using namespace std;
 
 namespace polar_race{
@@ -111,15 +117,20 @@ bool RangeCache::buck_findblk(BucketLinkList* buckptr, off_t position, off_t &fb
     return false;
 }
 
-bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
+bool RangeCache::access(off_t position, void *buffer,uint32_t& bn, RangeCacheProfiler& rcp){
+    struct timespec t = {0};
+    StartTimer(&t);
     blistmu.rdlock();
     auto cbptri = blklist_exist(position);
     auto cbptr = (cbptri == blklist.end() ? nullptr : *cbptri);
     blistmu.unlock();
+    rcp.exist_judge_first.fetch_add(GetTimeElapsed(&t));
     if(cbptr == nullptr){
         // cache miss
         qLogDebugfmt("RangeCache: miss at %ld", position);
+        StartTimer(&t);
         int buckid = BucketLinkList::check_location(position);
+        rcp.check_location.fetch_add(GetTimeElapsed(&t));
         bn = buckid;
         qLogDebugfmt("RangeCache: going to load from bucket %d", buckid);
         off_t cblkbegin = 0;
@@ -131,6 +142,7 @@ bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
             abort();
         }
         qLogDebugfmt("RangeCache: rdfile %ld -> +%ld", cblkbegin, cblklen);
+        StartTimer(&t);
         while(!allocate(cblklen)){
             // do some detection when allocation GG
             blistmu.rdlock();
@@ -142,6 +154,8 @@ bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
                 break;
             }
         }
+        rcp.allocation_first_try.fetch_add(GetTimeElapsed(&t));
+        StartTimer(&t);
         if(cbptr == nullptr){
             // allocation success, no allocated block detected
             blistmu.wrlock();
@@ -155,16 +169,20 @@ bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
                 blklist.push_back(cbptr);
                 cbptri = blklist_exist(position);
                 blistmu.unlock();
+                rcp.real_allocation.fetch_add(GetTimeElapsed(&t));
             } else {
                 // someone allocated that for me..
                 qLogDebug("RangeCache: re-block-allocation detected.");
                 blistmu.unlock();
                 deallocate(cblklen);
+                rcp.duplicate_allocation.fetch_add(GetTimeElapsed(&t));
             }
         }
     }
     // complete access
+    StartTimer(&t);
     int acrv = cbptr->access(position, buffer);
+    rcp.rcache_access.fetch_add(GetTimeElapsed(&t));
     if(acrv == 0){
         qLogFailfmt("RangeCache: Accessing cache position %ld result in failure.", position);
         qLogFail("RangeCache: This normally indicates a critical bug in cache access logic.");
@@ -174,14 +192,16 @@ bool RangeCache::access(off_t position, void *buffer,uint32_t& bn){
     return true;
 }
 
-void RangeCache::across(uint32_t buckno){
+void RangeCache::across(uint32_t buckno, RangeCacheProfiler& rcp){
+    struct timespec t = {0};
     if(buckno >= BUCKET_NUMBER){
         qLogFailfmt("RangeCacheAcrosser: Reported acrossed bucket %d, while it's not even possible.", buckno);
         abort();
     }
     int acrc = across_counter[buckno].fetch_add(1) + 1;
     qLogInfofmt("RangeCacheAcrosser: %d acrossed %d time(s).", buckno, acrc);
-    if(acrc == CONCURRENT_QUERY){
+    if(acrc >= CONCURRENT_QUERY){
+        StartTimer(&t);
         qLogInfofmt("RangeCacheAcrosser: bucket %d invalidated!!", buckno);
         blistmu.wrlock();
         for(auto it = blklist.begin(); it != blklist.end();){
@@ -196,8 +216,19 @@ void RangeCache::across(uint32_t buckno){
             }
         }
         blistmu.unlock();
+        rcp.rcache_across_free.fetch_add(GetTimeElapsed(&t));
     }
 }
 
+void RangeCacheProfiler::print(){
+    cout << "RangeCacheProfiler:" << endl;
+    cout << "Access::FirstExitJudgement   " << exist_judge_first << endl;
+    cout << "Access::CheckLocationCall    " << check_location << endl;
+    cout << "Access::FirstTryAllocation   " << allocation_first_try << endl;
+    cout << "Access::RealAllocation       " << real_allocation << endl;
+    cout << "Access::DuplicatedAllocation " << duplicate_allocation << endl;
+    cout << "Access::CacheBlockAccess     " << rcache_access << endl;
+    cout << "Across::FreeUselessBlocks    " << rcache_across_free << endl;
+}
 
 };

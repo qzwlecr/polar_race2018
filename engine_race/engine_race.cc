@@ -454,10 +454,13 @@ namespace polar_race {
         volatile bool prep_ok;
         int metafd;
         int backfd;
+        RangeCacheProfiler* rcp;
+        std::mutex seq_entr_ensure;
 
         RangeStats() :
                 concur_ranges(0), globidx_completed(0), state_running(false),
-                rcache(nullptr), prep_ok(false), metafd(-1), backfd(-1) {};
+                rcache(nullptr), prep_ok(false), metafd(-1), backfd(-1),
+                rcp(new RangeCacheProfiler()) {};
 
         void load_globidx();
 
@@ -498,6 +501,7 @@ namespace polar_race {
          * the overall access to file contents. This cache object also need to be created OOO.
          */
         // wait for previous range epoch complete
+        rs.seq_entr_ensure.lock();
         off_t loweroff, upperoff;
         uint32_t nextelem = 0;
         const char *rdkey = nullptr;
@@ -557,6 +561,7 @@ namespace polar_race {
             }
             qLogSuccfmt("Ranger[%d]: Initialized!", myid);
         }
+        rs.seq_entr_ensure.unlock();
         // start the reading work..
         uint32_t buckno = 0;
         while (true) {
@@ -566,16 +571,16 @@ namespace polar_race {
             rdkey = rs.read_globkeytab(nextelem);
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset);
             uint32_t tbuckno = 0;
-            if (!rs.rcache->access(rdoffset, rdval, tbuckno)) {
+            if (!rs.rcache->access(rdoffset, rdval, tbuckno, *rs.rcp)) {
                 qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
                 abort();
             }
             if (buckno != tbuckno) {
-                rs.rcache->across(buckno);
+                rs.rcache->across(buckno, *rs.rcp);
                 buckno = tbuckno;
             }
-            qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld => Value %s", myid, KVArrayDump(rdkey, 8).c_str(),
-                         rdoffset,
+            qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld => Buck %d => Value %s ", myid, KVArrayDump(rdkey, 8).c_str(),
+                         rdoffset, buckno, 
                          KVArrayDump(rdval, 8).c_str());
             visitor.Visit(PolarString(rdkey, KEY_SIZE), PolarString(rdval, VAL_SIZE));
             if (rdoffset == upperoff) break;
@@ -603,6 +608,9 @@ namespace polar_race {
             rs.metafd = -1;
             rs.backfd = -1;
             qLogSucc("LastRanger: marking epoch completion..");
+            rs.rcp->print();
+            delete rs.rcp;
+            rs.rcp = new RangeCacheProfiler();
             rs.state_running = false;
         }
         qLogSucc("Ranger: waiting exit sign..");

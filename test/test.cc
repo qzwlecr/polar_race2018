@@ -207,7 +207,7 @@ int main(int argc, char** argv)
     }
     std::string dir(argv[1]);
 
-    auto numThreads = 4;
+    auto numThreads = 1;
     unsigned numWrite = 1000;
     std::cout << numThreads << " " << numWrite << std::endl;
 

@@ -15,6 +15,21 @@ extern "C"{
 
 namespace polar_race{
 
+class RangeCacheProfiler{
+    public:
+    std::atomic<uint64_t> exist_judge_first;
+    std::atomic<uint64_t> check_location;
+    std::atomic<uint64_t> allocation_first_try;
+    std::atomic<uint64_t> real_allocation;
+    std::atomic<uint64_t> duplicate_allocation;
+    std::atomic<uint64_t> rcache_access;
+    std::atomic<uint64_t> rcache_across_free;
+    inline RangeCacheProfiler():exist_judge_first(0),check_location(0),
+    allocation_first_try(0), real_allocation(0), duplicate_allocation(0),
+    rcache_access(0), rcache_across_free(0){};
+    void print();
+};
+
 class CacheBlock {
     public:
     inline uint64_t size();
@@ -35,8 +50,8 @@ class CacheBlock {
 
 class RangeCache {
     public:
-    bool access(off_t position, void* buffer, uint32_t& bn);
-    void across(uint32_t bn);
+    bool access(off_t position, void* buffer, uint32_t& bn, RangeCacheProfiler& rcp);
+    void across(uint32_t bn, RangeCacheProfiler& rcp);
     RangeCache(int metafd, int backfd, uint32_t mxsize);
     ~RangeCache();
     private:
@@ -52,6 +67,7 @@ class RangeCache {
     std::atomic_uint currsize;
     std::atomic_uint across_counter[BUCKET_NUMBER];
 };
+
 
 };
 

@@ -13,7 +13,7 @@ namespace polar_race {
     const std::size_t FILE_SIZE = 1ul * 1024 * 1024 * 1024;
     const std::size_t KEY_SIZE = 8;
     const std::size_t VAL_SIZE = 4096;
-    const int CONCURRENT_QUERY = 4;
+    const int CONCURRENT_QUERY = 1;
     const int HANDLER_THREADS = 2;
     const float LOAD_FACTOR = 0.9f;
     const std::size_t HASH_MAP_SIZE = 640000;
