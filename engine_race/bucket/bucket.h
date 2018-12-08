@@ -18,7 +18,7 @@ namespace polar_race {
 
         void put(uint64_t &location, char *value);
 
-        uint64_t head_index;
+        volatile uint64_t head_index;
 
         std::atomic<uint64_t> next_index;
 

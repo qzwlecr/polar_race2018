@@ -16,7 +16,7 @@ namespace polar_race {
     int MetaFd;
 
     uint64_t BucketLinkList::get(uint64_t head) {
-        if (head + BUCKET_BUFFER_LENGTH >
+        if (head + BUCKET_BUFFER_LENGTH >=
             links.back() + (links.size() == 1 ? FIRST_BUCKET_LENGTH : OTHER_BUCKET_LENGTH)) {
             uint64_t next_head = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
             links.push_back(next_head);

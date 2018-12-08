@@ -25,6 +25,7 @@ namespace polar_race {
     }
 
     void Bucket::put(uint64_t &location, char *value) {
+        WRITING_BEGIN:
         uint64_t index = next_index.fetch_add(VAL_SIZE);
         if (index >= head_index + BUCKET_BUFFER_LENGTH) {
             qLogDebug("Bucket::put: getting writing lock before");
@@ -32,9 +33,8 @@ namespace polar_race {
             qLogDebug("Bucket::put: getting writing lock after");
             if (index < head_index + BUCKET_BUFFER_LENGTH) {
                 writing.unlock();
-                index = next_index.fetch_add(VAL_SIZE);
                 qLogDebug("Bucket::put: writing work is already done by other threads");
-                goto WRITING_DONE;
+                goto WRITING_BEGIN;
             }
             while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE);
             uint64_t num = 0;
@@ -53,10 +53,11 @@ namespace polar_race {
                          head_index, num);
             writing.unlock();
             flushBuffer(last_head_index, BackupBuffer[num % BUCKET_BACKUP_NUMBER], int(num % BUCKET_BACKUP_NUMBER));
+            goto WRITING_BEGIN;
             //TODO: if bug occurs, check if all backup buffers are already used.
         }
-        WRITING_DONE:
         memcpy(buffer + index - head_index, value, VAL_SIZE);
+        qLogDebugfmt("Bucket::put: memcpy done from %lx", (uint64_t) (buffer + index - head_index));
         done_number.fetch_add(1);
         location = index;
     }
@@ -67,8 +68,8 @@ namespace polar_race {
     }
 
     void flushBuffer(uint64_t index, char *buffer, int should_done) {
-        qLogDebugfmt("FlushBuffer: Write %lu %lx %d", index, (uint64_t)buffer, should_done);
-        if(pwrite(ValuesFd, buffer, BUCKET_BUFFER_LENGTH, index) == -1){
+        qLogDebugfmt("FlushBuffer: Write %lu %lx %d", index, (uint64_t) buffer, should_done);
+        if (pwrite(ValuesFd, buffer, BUCKET_BUFFER_LENGTH, index) == -1) {
             qLogFail(strerror(errno));
         };
         BackupBufferU[should_done] = false;
