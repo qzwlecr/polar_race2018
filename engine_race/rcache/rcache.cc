@@ -82,7 +82,7 @@ bool RangeCache::allocate(uint32_t blkspace){
 
 void RangeCache::deallocate(uint32_t blkspace){
     currsize.fetch_sub(blkspace);
-    if(currsize < 0){
+    if(((int32_t)currsize) < 0){
         qLogFail("RangeCache: Current cache size is less than 0!!");
         qLogFail("RangeCache: This normally indicates critical bugs in cache implementation.");
         qLogFail("RangeCache: Aborting..");

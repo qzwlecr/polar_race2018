@@ -560,6 +560,8 @@ namespace polar_race {
         // start the reading work..
         uint32_t buckno = 0;
         while (true) {
+        #undef Q_LOG_LOGLEVEL
+        #define Q_LOG_LOGLEVEL 0
             off_t rdoffset = rs.read_globofftab(nextelem);
             rdkey = rs.read_globkeytab(nextelem);
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset);
@@ -578,6 +580,8 @@ namespace polar_race {
             visitor.Visit(PolarString(rdkey, KEY_SIZE), PolarString(rdval, VAL_SIZE));
             if (rdoffset == upperoff) break;
             nextelem++;
+        #undef Q_LOG_LOGLEVEL
+        #define Q_LOG_LOGLEVEL 20
         }
         int exitseq = rs.concur_ranges.fetch_sub(1);
         qLogSuccfmt("Ranger[%d]: ExitSequence %d", myid, exitseq);
