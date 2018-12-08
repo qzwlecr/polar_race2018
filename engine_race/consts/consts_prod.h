@@ -37,8 +37,8 @@ namespace polar_race {
     const int UDS_CONGEST_AMPLIFIER = 2;
     const bool UDS_BIND_FAIL_SUPRESS = true;
     const bool SIGNAL_FULL_DUMP = true;
-    const bool SELFCLOSER_ENABLED = false;
-    const int SANITY_EXEC_TIME = 600;
+    const bool SELFCLOSER_ENABLED = true;
+    const int SANITY_EXEC_TIME = 1200;
     extern TimingProfile handtps[HANDLER_THREADS];
     const bool EXEC_MODE_BENCHMARK = false;
     const uint32_t RANGE_CACHE_SIZE = 1 * 1024 * 1024 * 1024;
