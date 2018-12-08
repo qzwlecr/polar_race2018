@@ -140,7 +140,7 @@ namespace polar_race {
             NextIndex = 0;
             for (int i = 0; i < BUCKET_NUMBER; i++) {
                 BucketLinkLists[i]->sizes.push_back(BUCKET_BUFFER_LENGTH / VAL_SIZE);
-                auto index = NextIndex.fetch_add(FIRST_BUCKET_LENGTH);
+                uint64_t index = NextIndex.fetch_add(FIRST_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
             }
         } else {
@@ -160,7 +160,7 @@ namespace polar_race {
             BucketLinkList::unpersist(MetaFd);
             for (int i = 0; i < BUCKET_NUMBER; i++) {
                 BucketLinkLists[i]->sizes.push_back(BUCKET_BUFFER_LENGTH / VAL_SIZE);
-                auto index = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
+                uint64_t index = NextIndex.fetch_add(OTHER_BUCKET_LENGTH);
                 BucketLinkLists[i]->links.push_back(index);
             }
         }

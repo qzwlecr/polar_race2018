@@ -28,24 +28,24 @@ namespace polar_race {
         WRITING_BEGIN:
         uint64_t index = next_index.fetch_add(VAL_SIZE);
         if (index >= head_index + BUCKET_BUFFER_LENGTH) {
-            qLogInfo("Bucket::put: getting writing lock before");
+            qLogDebug("Bucket::put: getting writing lock before");
             writing.lock();
-            qLogInfo("Bucket::put: getting writing lock after");
+            qLogDebug("Bucket::put: getting writing lock after");
             if (index < head_index + BUCKET_BUFFER_LENGTH) {
                 writing.unlock();
-                qLogInfo("Bucket::put: writing work is already done by other threads");
+                qLogDebug("Bucket::put: writing work is already done by other threads");
                 goto WRITING_BEGIN;
             }
-            qLogInfo("Bucket::put: waiting for all before");
+            qLogDebug("Bucket::put: waiting for all before");
             while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE);
-            qLogInfo("Bucket::put: waiting for all after");
+            qLogDebug("Bucket::put: waiting for all after");
             uint64_t num = 0;
             bool desired;
             do {
                 num = BackupCount.fetch_add(1);
                 desired = false;
             } while (!BackupBufferU[num % BUCKET_BACKUP_NUMBER].compare_exchange_weak(desired, true));
-            qLogInfo("Bucket::put: getting backup buffer");
+            qLogDebug("Bucket::put: getting backup buffer");
             std::swap(buffer, BackupBuffer[num % BUCKET_BACKUP_NUMBER]);
             uint64_t last_head_index = head_index;
             head_index = BucketLinkLists[id]->get(head_index);
