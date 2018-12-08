@@ -182,7 +182,7 @@ void RangeCache::across(uint32_t buckno){
     int acrc = across_counter[buckno].fetch_add(1) + 1;
     qLogInfofmt("RangeCacheAcrosser: %d acrossed %d time(s).", buckno, acrc);
     if(acrc == CONCURRENT_QUERY){
-        qLogSuccfmt("RangeCacheAcrosser: bucket %d invalidated!!", buckno);
+        qLogInfofmt("RangeCacheAcrosser: bucket %d invalidated!!", buckno);
         blistmu.wrlock();
         for(auto it = blklist.begin(); it != blklist.end();){
             qLogDebugfmt("RangeCacheAcrosser: Try Block [%d]%ld(+%ld)", (*it)->buck(), (*it)->begin, (*it)->size());
