@@ -12,7 +12,7 @@
 namespace polar_race{
 
 #ifndef Q_LOG_LOGLEVEL
-#define Q_LOG_LOGLEVEL 20
+#define Q_LOG_LOGLEVEL 10
 #endif
 
 // these are pre-defined loglevels
