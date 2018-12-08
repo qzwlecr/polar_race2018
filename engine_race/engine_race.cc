@@ -164,12 +164,28 @@ namespace polar_race {
                 BucketLinkLists[i]->links.push_back(index);
             }
         }
-        ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_SYNC |  O_DIRECT, 0666);
+        ValuesFd = open(VALUES_PATH.c_str(), O_RDWR | O_SYNC | O_DIRECT, 0666);
         valuesfdr = open(VALUES_PATH.c_str(), O_NOATIME);
 
         if (posix_fallocate(ValuesFd, 0, FILE_SIZE)) {
             qLogFailfmt("Startup: Fallocate file failed: %s", strerror(errno));
             abort();
+        }
+
+        qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
+        for (int i = 0; i < HANDLER_THREADS; i++) {
+            recvaddres[i] = std::string(REQ_ADDR_PREFIX) + ItoS(i);
+            rsaddr[i] = mksockaddr_un(recvaddres[i]);
+        }
+        qLogSuccfmt("StartupConfigurator: %d UDSs..", UDS_NUM);
+        for (int i = 0; i < UDS_NUM; i++) {
+            std::string sndaddr = std::string(RESP_ADDR_PREFIX) + ItoS(i);
+            requestfds[i] = MailBox(sndaddr);
+            if (requestfds[i].desc == -1) {
+                qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
+                abort();
+            }
+            reqfds_occupy[i] = false;
         }
 
         is_forked = false;
@@ -265,21 +281,6 @@ namespace polar_race {
                 for (int i = 0; i < HANDLER_THREADS; i++) {
                     handtps[i] = {0};
                 }
-                qLogSuccfmt("StartupConfigurator: %d Handlers..", HANDLER_THREADS);
-                for (int i = 0; i < HANDLER_THREADS; i++) {
-                    recvaddres[i] = std::string(REQ_ADDR_PREFIX) + ItoS(i);
-                    rsaddr[i] = mksockaddr_un(recvaddres[i]);
-                }
-                qLogInfofmt("StartupConfigurator: %d UDSs..", UDS_NUM);
-                for (int i = 0; i < UDS_NUM; i++) {
-                    std::string sndaddr = std::string(RESP_ADDR_PREFIX) + ItoS(i);
-                    requestfds[i] = MailBox(sndaddr);
-                    if (requestfds[i].desc == -1) {
-                        qLogFailfmt("Startup: UDS %d open failed: %s", i, strerror(errno));
-                        abort();
-                    }
-                    reqfds_occupy[i] = false;
-                }
                 qLogInfo("Startup: FORK !");
                 if (fork()) {
                     // parent
@@ -299,7 +300,7 @@ namespace polar_race {
                     qLogInfo("RequestHandler: FORK completed.");
                     prepareSignalDump();
                     int lockv = flock(lockfd, LOCK_EX);
-                    if(lockv == -1){
+                    if (lockv == -1) {
                         qLogFailfmt("RequstHandler: unable to acquire file lock: %s", strerror(errno));
                         abort();
                     }
@@ -324,7 +325,7 @@ namespace polar_race {
                     if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
                         qLogInfo("Startup: Unpersisting..");
                         int fd = open(INDECIES_PATH.c_str(), 0);
-                        ((IndexStore*)GlobalIndexStore)->unpersist(fd);
+                        ((IndexStore *) GlobalIndexStore)->unpersist(fd);
                         close(fd);
                     }
                     std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
@@ -358,7 +359,7 @@ namespace polar_race {
         if (curraff == CONCURRENT_QUERY) {
             int newaffinity = (int) (newaff.fetch_add(1) % CONCURRENT_QUERY);
             sys_setaff(0, newaffinity);
-            qLogInfofmt("Engine::Write new affinity %d", newaffinity);
+            qLogSuccfmt("Engine::Write new affinity %d", newaffinity);
             curraff = newaffinity;
         }
         RequestResponse rr = {0};
@@ -367,15 +368,18 @@ namespace polar_race {
         rr.type = RequestType::TYPE_WR;
         ssize_t sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
                                                  &(rsaddr[curraff / 2]));
-        if (sv == -1) {
-            qLogFailfmt("Engine::Write failed to send wr request: MB[%d]:%s", requestfds[curraff].desc, strerror(errno));
-            abort();
-            return kIOError;
+        while (sv == -1) {
+            qLogFailfmt("Engine::Write failed to send wr request: MB[%d]:%s", requestfds[curraff].desc,
+                        strerror(errno));
+            sv = requestfds[curraff].sendOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse),
+                                                     &(rsaddr[curraff / 2]));
+            sleep(1);
         }
         struct sockaddr_un useless;
         ssize_t rv = requestfds[curraff].getOne(reinterpret_cast<char *>(&rr), sizeof(RequestResponse), &useless);
         if (rv == -1) {
-            qLogFailfmt("Engine::Write failed to recv wr response: MB[%d]:%s", requestfds[curraff].desc, strerror(errno));
+            qLogFailfmt("Engine::Write failed to recv wr response: MB[%d]:%s", requestfds[curraff].desc,
+                        strerror(errno));
             abort();
             return kIOError;
         }
@@ -395,7 +399,7 @@ namespace polar_race {
                 if (!access(INDECIES_PATH.c_str(), R_OK | W_OK)) {
                     qLogInfo("Startup: Unpersisting..");
                     int fd = open(INDECIES_PATH.c_str(), 0);
-                    ((IndexStore*)GlobalIndexStore)->unpersist(fd);
+                    ((IndexStore *) GlobalIndexStore)->unpersist(fd);
                     close(fd);
                 }
             }
@@ -407,7 +411,7 @@ namespace polar_race {
         char val[VAL_SIZE];
         uint64_t file_offset = 0;
         // look up in global index store
-        if (!((IndexStore*)GlobalIndexStore)->get(k, file_offset)) {
+        if (!((IndexStore *) GlobalIndexStore)->get(k, file_offset)) {
             // not found
             qLogInfofmt("EngineRace: Key %lu not found !", k);
             return kNotFound;
@@ -446,25 +450,36 @@ namespace polar_race {
         std::atomic_int concur_ranges;
         std::atomic_int globidx_completed;
         volatile bool state_running;
-        RangeCache* rcache;
+        RangeCache *rcache;
         volatile bool prep_ok;
         int metafd;
         int backfd;
-        RangeStats():
-        concur_ranges(0), state_running(false),
-        globidx_completed(0), prep_ok(false),
-        rcache(nullptr), metafd(-1), backfd(-1){};
+
+        RangeStats() :
+                concur_ranges(0), globidx_completed(0), state_running(false),
+                rcache(nullptr), prep_ok(false), metafd(-1), backfd(-1) {};
+
         void load_globidx();
+
         void unload_globidx();
-        off_t read_globidx(const char* key);
+
+        off_t read_globidx(const char *key);
+
         void load_globofftab();
+
         void unload_globofftab();
+
         off_t read_globofftab(uint32_t elemidx);
+
         void load_globkeytab();
+
         void unload_globkeytab();
-        const char* read_globkeytab(uint32_t elemidx);
-        uint32_t seek_globkeytab(const char* k);
+
+        const char *read_globkeytab(uint32_t elemidx);
+
+        uint32_t seek_globkeytab(const char *k);
     } rs;
+
     RetCode EngineRace::Range(const PolarString &lower, const PolarString &upper,
                               Visitor &visitor) {
         /* TODO: what should we do?
@@ -485,87 +500,88 @@ namespace polar_race {
         // wait for previous range epoch complete
         off_t loweroff, upperoff;
         uint32_t nextelem = 0;
-        const char* rdkey = nullptr;
-        char* rdval = (char*)malloc(VAL_SIZE);
-        while(rs.state_running);
+        const char *rdkey = nullptr;
+        char *rdval = (char *) malloc(VAL_SIZE);
+        while (rs.state_running);
         int myid = rs.concur_ranges.fetch_add(1);
-        if(myid == 0){
+        if (myid == 0) {
             // this is the first Ranger, it need to initialize many things..
             rs.metafd = open(META_PATH.c_str(), O_RDONLY);
-            if(rs.metafd == -1){
+            if (rs.metafd == -1) {
                 qLogFailfmt("FirstRanger: metafd open failed: %s", strerror(errno));
                 abort();
             }
             rs.backfd = open(VALUES_PATH.c_str(), O_RDONLY);
-            if(rs.backfd == -1){
+            if (rs.backfd == -1) {
                 qLogFailfmt("FirstRanger: backfd open failed: %s", strerror(errno));
                 abort();
             }
             qLogSuccfmt("FirstRanger: meta %s, values %s, cachesz %u",
-            META_PATH_SUFFIX.c_str(), VALUES_PATH_SUFFIX.c_str(), RANGE_CACHE_SIZE);
+                        META_PATH_SUFFIX.c_str(), VALUES_PATH_SUFFIX.c_str(), RANGE_CACHE_SIZE);
             qLogSucc("FirstRanger: Creating RangeCache..");
             rs.rcache = new RangeCache(rs.metafd, rs.backfd, RANGE_CACHE_SIZE);
             qLogSucc("FirstRanger: Loading Tables");
             rs.load_globofftab();
             rs.load_globkeytab();
             rs.prep_ok = true;
-            if(lower.ToString() == ""){
+            if (lower.ToString() == "") {
                 loweroff = rs.read_globofftab(0);
                 nextelem = 0;
             } else {
                 nextelem = rs.seek_globkeytab(lower.data());
                 loweroff = rs.read_globofftab(nextelem);
             }
-            if(upper.ToString() == ""){
+            if (upper.ToString() == "") {
                 upperoff = rs.read_globofftab(indexer_size - 1);
-            }else{
+            } else {
                 upperoff = rs.read_globofftab(rs.seek_globkeytab(upper.data()));
             }
             qLogSucc("FirstRanger: OK.");
             // differential part ends here..
         } else {
             qLogInfofmt("Ranger[%d]: Initializing..", myid);
-            if(myid == (CONCURRENT_QUERY - 1)){
+            if (myid == (CONCURRENT_QUERY - 1)) {
                 rs.state_running = true;
             }
-            if(lower.ToString() == ""){
+            if (lower.ToString() == "") {
                 loweroff = rs.read_globofftab(0);
                 nextelem = 0;
             } else {
                 nextelem = rs.seek_globkeytab(lower.data());
                 loweroff = rs.read_globofftab(nextelem);
             }
-            if(upper.ToString() == ""){
+            if (upper.ToString() == "") {
                 upperoff = rs.read_globofftab(indexer_size - 1);
-            }else{
+            } else {
                 upperoff = rs.read_globofftab(rs.seek_globkeytab(upper.data()));
             }
             qLogSuccfmt("Ranger[%d]: Initialized!", myid);
         }
         // start the reading work..
         uint32_t buckno = 0;
-        while(true){
+        while (true) {
             off_t rdoffset = rs.read_globofftab(nextelem);
             rdkey = rs.read_globkeytab(nextelem);
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset);
             uint32_t tbuckno = 0;
-            if(!rs.rcache->access(rdoffset, rdval, tbuckno)){
+            if (!rs.rcache->access(rdoffset, rdval, tbuckno)) {
                 qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
                 abort();
             }
-            if(buckno != tbuckno){
+            if (buckno != tbuckno) {
                 rs.rcache->across(buckno);
                 buckno = tbuckno;
             }
-            qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld => Value %s", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset,
-            KVArrayDump(rdval, 8).c_str());
+            qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld => Value %s", myid, KVArrayDump(rdkey, 8).c_str(),
+                         rdoffset,
+                         KVArrayDump(rdval, 8).c_str());
             visitor.Visit(PolarString(rdkey, KEY_SIZE), PolarString(rdval, VAL_SIZE));
-            if(rdoffset == upperoff) break;
-            nextelem ++;
+            if (rdoffset == upperoff) break;
+            nextelem++;
         }
         int exitseq = rs.concur_ranges.fetch_sub(1);
-        qLogInfofmt("Ranger[%d]: ExitSequence %d", myid, exitseq);
-        if(exitseq == 1){
+        qLogSuccfmt("Ranger[%d]: ExitSequence %d", myid, exitseq);
+        if (exitseq == 1) {
             // this is the last ranger
             qLogSucc("LastRanger: resetting globals");
             rs.globidx_completed = 0;
@@ -586,19 +602,19 @@ namespace polar_race {
             rs.state_running = false;
         }
         qLogSucc("Ranger: waiting exit sign..");
-        while(rs.state_running);
+        while (rs.state_running);
         return kSucc;
     }
 
-    void RangeStats::load_globidx(){
-        if(GlobalIndexStore != nullptr){
+    void RangeStats::load_globidx() {
+        if (GlobalIndexStore != nullptr) {
             qLogWarn("RangeStatsLoader: GlobalIndexStore is not null while trying to load it.");
             qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
             return;
         }
-        IndexStore* idst = new IndexStore();
+        IndexStore *idst = new IndexStore();
         int idxsfd = open(INDECIES_PATH.c_str(), O_RDONLY);
-        if(idxsfd == -1){
+        if (idxsfd == -1) {
             qLogFailfmt("RangeStatsLoader: cannot open index path: %s", strerror(errno));
             abort();
         }
@@ -609,20 +625,20 @@ namespace polar_race {
         qLogSucc("RangeStatsLoader: index unpersist completed.");
     }
 
-    void RangeStats::unload_globidx(){
+    void RangeStats::unload_globidx() {
         delete GlobalIndexStore;
         GlobalIndexStore = nullptr;
         qLogSucc("RangeStatsEliminator: GlobalIndexStore eliminated.");
     }
-    
-    void RangeStats::load_globofftab(){
-        if(GlobalOffsetTable != nullptr){
+
+    void RangeStats::load_globofftab() {
+        if (GlobalOffsetTable != nullptr) {
             qLogWarn("RangeStatsLoader: GlobalOffsetTable is not null while trying to load it.");
             qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
             return;
         }
         int offtfd = open(OFFSET_TABLE_PATH.c_str(), O_RDONLY);
-        if(offtfd == -1){
+        if (offtfd == -1) {
             qLogFailfmt("RangeStatsLoader: cannot open offset path: %s", strerror(errno));
             abort();
         }
@@ -632,68 +648,68 @@ namespace polar_race {
         qLogSucc("RangeStatsLoader: offset table unpersisted.");
     }
 
-    void RangeStats::unload_globofftab(){
+    void RangeStats::unload_globofftab() {
         delete GlobalOffsetTable;
         GlobalOffsetTable = nullptr;
         qLogSucc("RangeStatsEliminator: GlobalOffsetTable eliminated.");
     }
 
-    void RangeStats::load_globkeytab(){
-        if(GlobalKeyTable != nullptr){
+    void RangeStats::load_globkeytab() {
+        if (GlobalKeyTable != nullptr) {
             qLogWarn("RangeStatsLoader: GlobalKeyTable is not null while trying to load it.");
             qLogWarn("RangeStatsLoader: will treat as warning, but this usually indicates critical bugs.");
             return;
         }
         int offtfd = open(KEY_TABLE_PATH.c_str(), O_RDONLY);
-        if(offtfd == -1){
+        if (offtfd == -1) {
             qLogFailfmt("RangeStatsLoader: cannot open key path: %s", strerror(errno));
             abort();
         }
-        KeyTable* ktab = new KeyTable(offtfd);
+        KeyTable *ktab = new KeyTable(offtfd);
         GlobalKeyTable = ktab;
         close(offtfd);
         qLogSucc("RangeStatsLoader: key table unpersisted.");
     }
 
-    void RangeStats::unload_globkeytab(){
+    void RangeStats::unload_globkeytab() {
         delete GlobalKeyTable;
         GlobalKeyTable = nullptr;
         qLogSucc("RangeStatsEliminator: GlobalKeyTable eliminated.");
     }
 
-    off_t RangeStats::read_globidx(const char* key){
-        while(!prep_ok);
+    off_t RangeStats::read_globidx(const char *key) {
+        while (!prep_ok);
         uint64_t pos = 0;
-        bool exist = ((IndexStore*)GlobalIndexStore)->get(*(const uint64_t*)(key), pos);
-        if(!exist){
+        bool exist = ((IndexStore *) GlobalIndexStore)->get(*(const uint64_t *) (key), pos);
+        if (!exist) {
             qLogWarn("GlobalIndexReader: are you trying to get some not-exist key in range??");
         }
         return pos;
     }
 
-    off_t RangeStats::read_globofftab(uint32_t elemidx){
-        while(!prep_ok);
-        if(elemidx >= indexer_size){
+    off_t RangeStats::read_globofftab(uint32_t elemidx) {
+        while (!prep_ok);
+        if (elemidx >= indexer_size) {
             qLogWarnfmt("GlobalOffsetReader: overflow detected, trying read %u, only has %u", elemidx, 0);
             return 0;
         }
         return REAL_OFFSET(GlobalOffsetTable->data[elemidx]);
     }
 
-    const char* RangeStats::read_globkeytab(uint32_t elemidx){
-        while(!prep_ok);
-        if(elemidx >= indexer_size){
+    const char *RangeStats::read_globkeytab(uint32_t elemidx) {
+        while (!prep_ok);
+        if (elemidx >= indexer_size) {
             qLogWarnfmt("GlobalKeyReader: overflow detected, trying read %u, only has %u", elemidx, 0);
             return 0;
         }
-        return (char*)&(GlobalKeyTable->data[elemidx]);
+        return (char *) &(GlobalKeyTable->data[elemidx]);
     }
 
-    uint32_t RangeStats::seek_globkeytab(const char* k){
-        while(!prep_ok);
-        uint64_t ck = *(const uint64_t*)k;
-        for(uint32_t i = 0; i < indexer_size; i++){
-            if(ck == GlobalKeyTable->data[i]){
+    uint32_t RangeStats::seek_globkeytab(const char *k) {
+        while (!prep_ok);
+        uint64_t ck = *(const uint64_t *) k;
+        for (uint32_t i = 0; i < indexer_size; i++) {
+            if (ck == GlobalKeyTable->data[i]) {
                 return i;
             }
         }

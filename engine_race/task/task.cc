@@ -109,7 +109,7 @@ namespace polar_race {
                 }
 
                 qLogDebugfmt("HeartBeatChecker: slot start = %lx, length = %lu, slot end = %lx",
-                             &(GlobalIndexStore->hashmap.slots_),
+                             (uint64_t)&(GlobalIndexStore->hashmap.slots_),
                              GlobalIndexStore->hashmap.numSlots_,
                              (unsigned long) (&(GlobalIndexStore->hashmap.slots_) +
                                               GlobalIndexStore->hashmap.numSlots_ *

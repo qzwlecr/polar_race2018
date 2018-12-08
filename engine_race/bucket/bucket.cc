@@ -67,7 +67,7 @@ namespace polar_race {
     }
 
     void flushBuffer(uint64_t index, char *buffer, int should_done) {
-        qLogDebugfmt("FlushBuffer: Write %lu %lx %d", index, buffer, should_done);
+        qLogDebugfmt("FlushBuffer: Write %lu %lx %d", index, (uint64_t)buffer, should_done);
         if(pwrite(ValuesFd, buffer, BUCKET_BUFFER_LENGTH, index) == -1){
             qLogFail(strerror(errno));
         };

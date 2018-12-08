@@ -27,6 +27,7 @@ RWMutex::RWMutex(const RWMutex& src){
 
 RWMutex& RWMutex::operator=(const RWMutex &src){
     lockself = src.lockself;
+    return *this;
 }
 
 void RWMutex::rdlock(){

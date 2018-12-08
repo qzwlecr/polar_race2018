@@ -26,7 +26,7 @@ CacheBlock::~CacheBlock(){
 }
 
 uint64_t CacheBlock::size(){
-    return end - begin;
+    return (uint64_t)(end - begin);
 }
 
 bool CacheBlock::is_here(off_t position){
@@ -50,7 +50,7 @@ void CacheBlock::load(int fdesc){
         abort();
     }
     ssize_t rdsz = pread(fdesc, cachedata, size(), begin);
-    if(rdsz != size()){
+    if((uint64_t)rdsz != size()){
         qLogFailfmt("CacheBlock[%lu, %lu]: cannot read from disk: %s(%ld)", begin, end, strerror(errno), rdsz);
         abort();
     }
@@ -101,10 +101,10 @@ list<CacheBlock*>::iterator RangeCache::blklist_exist(off_t pos){
 
 
 bool RangeCache::buck_findblk(BucketLinkList* buckptr, off_t position, off_t &fbegin, uint64_t &flength){
-    for(int i = 0; i < buckptr->links.size(); i++){
+    for(size_t i = 0; i < buckptr->links.size(); i++){
         fbegin = buckptr->links[i];
         flength = buckptr->sizes[i] * VAL_SIZE;
-        if(position >= fbegin && (position - fbegin) < flength){
+        if(position >= fbegin && (uint64_t)(position - fbegin) < flength){
             return true;
         }
     }
@@ -180,14 +180,14 @@ void RangeCache::across(uint32_t buckno){
         abort();
     }
     int acrc = across_counter[buckno].fetch_add(1) + 1;
-    qLogSuccfmt("RangeCacheAcrosser: %d acrossed %d time(s).", buckno, acrc);
+    qLogInfofmt("RangeCacheAcrosser: %d acrossed %d time(s).", buckno, acrc);
     if(acrc == CONCURRENT_QUERY){
         qLogSuccfmt("RangeCacheAcrosser: bucket %d invalidated!!", buckno);
         blistmu.wrlock();
         for(auto it = blklist.begin(); it != blklist.end();){
             qLogDebugfmt("RangeCacheAcrosser: Try Block [%d]%ld(+%ld)", (*it)->buck(), (*it)->begin, (*it)->size());
             if((*it)->buck() == buckno){
-                qLogSuccfmt("RangeCacheAcrosser: Block %ld(+%ld) freed", (*it)->begin, (*it)->size());
+                qLogInfofmt("RangeCacheAcrosser: Block %ld(+%ld) freed", (*it)->begin, (*it)->size());
                 deallocate((*it)->size());
                 delete *it;
                 it = blklist.erase(it);
