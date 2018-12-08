@@ -26,32 +26,35 @@ namespace polar_race {
 
     void Bucket::put(uint64_t &location, char *value) {
         WRITING_BEGIN:
+        uint64_t last_head_index = head_index;
         uint64_t index = next_index.fetch_add(VAL_SIZE);
         if (index >= head_index + BUCKET_BUFFER_LENGTH) {
-            qLogDebug("Bucket::put: getting writing lock before");
+            qLogDebugfmt("Bucket[%d]::put: getting writing lock before", id);
             writing.lock();
-            qLogDebug("Bucket::put: getting writing lock after");
-            if (index < head_index + BUCKET_BUFFER_LENGTH) {
+            qLogDebugfmt("Bucket[%d]::put: getting writing lock after", id);
+            if (head_index != last_head_index) {
                 writing.unlock();
-                qLogDebug("Bucket::put: writing work is already done by other threads");
+                qLogDebugfmt("Bucket[%d]::put: writing work is already done by other threads", id);
                 goto WRITING_BEGIN;
             }
-            qLogDebug("Bucket::put: waiting for all before");
+            qLogInfofmt("Bucket[%d]::put: waiting for all before, done_number = %lu", id, done_number.load());
             while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE);
-            qLogDebug("Bucket::put: waiting for all after");
+            qLogDebugfmt("Bucket[%d]::put: waiting for all after", id);
             uint64_t num = 0;
             bool desired;
             do {
                 num = BackupCount.fetch_add(1);
                 desired = false;
             } while (!BackupBufferU[num % BUCKET_BACKUP_NUMBER].compare_exchange_weak(desired, true));
-            qLogDebug("Bucket::put: getting backup buffer");
+            qLogDebugfmt("Bucket[%d]::put: getting backup buffer", id);
             std::swap(buffer, BackupBuffer[num % BUCKET_BACKUP_NUMBER]);
             uint64_t last_head_index = head_index;
-            head_index = BucketLinkLists[id]->get(head_index);
-            next_index = head_index;
+            uint64_t next_head_index = BucketLinkLists[id]->get(head_index);
+            head_index = next_head_index;
+            next_index = next_head_index;
+            // ensure when next_index changes, head_index has already changed
             done_number = 0;
-            qLogInfofmt("Bucket::put: last head index = %lu, head index = %lu,  num = %lu", last_head_index,
+            qLogInfofmt("Bucket[%d]::put: last head index = %lu, head index = %lu,  num = %lu", id, last_head_index,
                          head_index, num);
             writing.unlock();
             flushBuffer(last_head_index, BackupBuffer[num % BUCKET_BACKUP_NUMBER], int(num % BUCKET_BACKUP_NUMBER));
@@ -59,7 +62,7 @@ namespace polar_race {
             //TODO: if bug occurs, check if all backup buffers are already used.
         }
         memcpy(buffer + index - head_index, value, VAL_SIZE);
-        qLogDebugfmt("Bucket::put: memcpy done from %lx", (uint64_t) (buffer + index - head_index));
+        qLogDebugfmt("Bucket[%d]::put: memcpy done from %lx", id, (uint64_t) (buffer + index - head_index));
         done_number.fetch_add(1);
         location = index;
     }
