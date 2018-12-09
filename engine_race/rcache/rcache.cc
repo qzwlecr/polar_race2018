@@ -113,7 +113,7 @@ bool RangeCache::buck_findblk(BucketLinkList* buckptr, off_t position, off_t &fb
     return false;
 }
 
-bool RangeCache::access(off_t position, void *buffer,uint32_t& bn, RangeCacheProfiler& rcp){
+bool RangeCache::access(off_t position, void *buffer,int32_t& bn, RangeCacheProfiler& rcp){
     struct timespec t = {0};
     StartTimer(&t);
     blistmu.rdlock();

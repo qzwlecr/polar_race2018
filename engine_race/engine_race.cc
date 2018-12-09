@@ -568,12 +568,12 @@ namespace polar_race {
             off_t rdoffset = rs.read_globofftab(nextelem);
             rdkey = rs.read_globkeytab(nextelem);
             qLogDebugfmt("Ranger[%d]: Try Key %s => offset %ld", myid, KVArrayDump(rdkey, 8).c_str(), rdoffset);
-            uint32_t tbuckno = 0;
+            int32_t tbuckno = -1;
             if (!rs.rcache->access(rdoffset, rdval, tbuckno, *rs.rcp)) {
                 qLogFailfmt("Ranger: rcache access failed: %lu", rdoffset);
                 abort();
             }
-            if (buckno != tbuckno) {
+            if (tbuckno != -1 && buckno != tbuckno) {
                 rs.rcache->across(buckno, *rs.rcp);
                 buckno = tbuckno;
             }

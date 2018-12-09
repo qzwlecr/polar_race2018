@@ -50,7 +50,7 @@ class CacheBlock {
 
 class RangeCache {
     public:
-    bool access(off_t position, void* buffer, uint32_t& bn, RangeCacheProfiler& rcp);
+    bool access(off_t position, void* buffer, int32_t& bn, RangeCacheProfiler& rcp);
     void across(uint32_t bn, RangeCacheProfiler& rcp);
     RangeCache(int metafd, int backfd, uint32_t mxsize);
     ~RangeCache();
