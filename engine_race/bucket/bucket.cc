@@ -28,19 +28,25 @@ namespace polar_race {
         WRITING_BEGIN:
         uint64_t last_head_index = head_index;
         uint64_t index = next_index.fetch_add(VAL_SIZE);
-        if (index >= head_index + BUCKET_BUFFER_LENGTH || last_head_index != head_index) {
+        if (index >= head_index + BUCKET_BUFFER_LENGTH || index < head_index || last_head_index != head_index) {
+            if (index < head_index) {
+                qLogWarnfmt("Bucket[%d]::put: out of date index!!!!", id);
+                goto WRITING_BEGIN;
+            }
+            if (head_index != last_head_index) {
+                if (index < head_index + BUCKET_BUFFER_LENGTH && index >= head_index) {
+                    goto MEMCPY_BEGIN;
+                }
+                qLogInfofmt("Bucket[%d]::put: writing work is already done by other threads", id);
+                goto WRITING_BEGIN;
+            }
             qLogDebugfmt("Bucket[%d]::put: getting writing lock before", id);
             writing.lock();
             qLogDebugfmt("Bucket[%d]::put: getting writing lock after", id);
 
-            if (head_index != last_head_index) {
-                writing.unlock();
-                qLogInfofmt("Bucket[%d]::put: writing work is already done by other threads", id);
-                goto WRITING_BEGIN;
-            }
-
             qLogInfofmt("Bucket[%d]::put: waiting for all before, done_number = %lu", id, done_number.load());
-            while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE);
+            while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE)
+                qLogInfofmt("done number = %lu", done_number.load());
             qLogDebugfmt("Bucket[%d]::put: waiting for all after", id);
 
             uint64_t num = 0;
@@ -57,15 +63,17 @@ namespace polar_race {
             head_index = next_head_index;
             next_index = next_head_index;
             // ensure when next_index changes, head_index has already changed
-            qLogInfofmt("Bucket[%d]::put: last head index = %lu, next head index = %lu,  num = %lu", id, last_head_index,
+            qLogInfofmt("Bucket[%d]::put: last head index = %lu, next head index = %lu,  num = %lu", id,
+                        last_head_index,
                         next_head_index, num);
             writing.unlock();
             flushBuffer(last_head_index, BackupBuffer[num % BUCKET_BACKUP_NUMBER], int(num % BUCKET_BACKUP_NUMBER));
             goto WRITING_BEGIN;
             //TODO: if bug occurs, check if all backup buffers are already used.
         }
-        memcpy(buffer + index - head_index, value, VAL_SIZE);
-        qLogDebugfmt("Bucket[%d]::put: memcpy done from %lx", id, (uint64_t) (buffer + index - head_index));
+        MEMCPY_BEGIN:
+        memcpy(buffer + index - last_head_index, value, VAL_SIZE);
+        qLogDebugfmt("Bucket[%d]::put: memcpy done from %lx", id, (uint64_t) (buffer + index - last_head_index));
         done_number.fetch_add(1);
         location = index;
     }
