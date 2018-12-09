@@ -38,7 +38,7 @@ namespace polar_race {
 
     };
 
-    void flushBuffer(uint64_t index, char *buffer, int should_done);
+    void flushDone(uint64_t data);
 
     extern Bucket *Buckets[BUCKET_NUMBER];
     extern char *BackupBuffer[BUCKET_BACKUP_NUMBER];

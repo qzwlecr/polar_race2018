@@ -5,6 +5,7 @@
 #include "bucket.h"
 #include "bucket_link_list.h"
 #include "format/log.h"
+#include "aio/aio.h"
 #include <cstring>
 
 extern "C" {
@@ -65,7 +66,11 @@ namespace polar_race {
                         last_head_index,
                         next_head_index, num);
             flushing.unlock();
-            flushBuffer(last_head_index, BackupBuffer[num % BUCKET_BACKUP_NUMBER], int(num % BUCKET_BACKUP_NUMBER));
+            AIOQuest * wactx =
+                    new AIOWriteQuest((uint32_t) ValuesFd, (uintptr_t) BackupBuffer[num % BUCKET_BACKUP_NUMBER],
+                                      BUCKET_BUFFER_LENGTH, last_head_index);
+            wactx->cb.aio_data = uint64_t(num % BUCKET_BACKUP_NUMBER);
+            actx.submit(*wactx);
             goto PUT_BEGIN;
             //TODO: if bug occurs, check if all backup buffers are already used.
         }
@@ -76,16 +81,13 @@ namespace polar_race {
     }
 
     Bucket::~Bucket() {
-        flushBuffer(head_index, buffer, 0);
+//        flushBuffer(head_index, buffer, 0);
         free(buffer);
     }
 
-    void flushBuffer(uint64_t index, char *buffer, int should_done) {
-        qLogInfofmt("FlushBuffer: Write %lu %lx %d", index, (uint64_t) buffer, should_done);
-        if (pwrite(ValuesFd, buffer, BUCKET_BUFFER_LENGTH, index) == -1) {
-            qLogFail(strerror(errno));
-        };
-        BackupBufferU[should_done] = false;
+
+    void flushDone(uint64_t data) {
+        BackupBufferU[data] = false;
     }
 
 
