@@ -11,10 +11,6 @@ extern "C"{
 #include <unistd.h>
 }
 
-#ifdef Q_LOG_LOGLEVEL
-#undef Q_LOG_LOGLEVEL
-#endif
-#define Q_LOG_LOGLEVEL 0
 using namespace std;
 
 namespace polar_race{
