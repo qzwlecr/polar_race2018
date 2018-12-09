@@ -29,14 +29,15 @@ namespace polar_race {
         uint64_t last_head_index = head_index;
         uint64_t index = next_index.fetch_add(VAL_SIZE);
         if (index >= head_index + BUCKET_BUFFER_LENGTH || last_head_index != head_index) {
-            if (head_index != last_head_index) {
-                qLogDebugfmt("Bucket[%d]::put: writing work is already done by other threads", id);
-                goto WRITING_BEGIN;
-            }
-
             qLogDebugfmt("Bucket[%d]::put: getting writing lock before", id);
             writing.lock();
             qLogDebugfmt("Bucket[%d]::put: getting writing lock after", id);
+
+            if (head_index != last_head_index) {
+                writing.unlock();
+                qLogDebugfmt("Bucket[%d]::put: writing work is already done by other threads", id);
+                goto WRITING_BEGIN;
+            }
 
             qLogInfofmt("Bucket[%d]::put: waiting for all before, done_number = %lu", id, done_number.load());
             while (done_number != BUCKET_BUFFER_LENGTH / VAL_SIZE);
