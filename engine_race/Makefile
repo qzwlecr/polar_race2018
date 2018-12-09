@@ -22,7 +22,7 @@ endif
 
 # compile with -O2 if debug level is not 2
 ifneq ($(DEBUG_LEVEL), 2)
-OPT += -O0 -fno-omit-frame-pointer -gstabs+
+OPT += -O2 -fno-omit-frame-pointer
 # if we're compiling for release, compile without debug code (-DNDEBUG) and
 # don't treat warnings as errors
 OPT += -DNDEBUG

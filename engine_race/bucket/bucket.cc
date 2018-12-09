@@ -59,7 +59,6 @@ namespace polar_race {
             std::swap(buffer, BackupBuffer[num % BUCKET_BACKUP_NUMBER]);
             uint64_t last_head_index = head_index;
             uint64_t next_head_index = BucketLinkLists[id]->get(head_index);
-            done_number = 0;
             head_index = next_head_index;
             next_index = next_head_index;
             // ensure when next_index changes, head_index has already changed

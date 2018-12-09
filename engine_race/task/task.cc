@@ -181,17 +181,17 @@ namespace polar_race {
 //        }
         struct timespec t = {0};
         while (true) {
-//            if (UNLIKELY(!attached)) {
-//                cpu_set_t set;
-//                CPU_ZERO(&set);
-//                CPU_SET(own_id * 2, &set);
-//                //dirty hard code
-//                if (sched_setaffinity(0, sizeof(set), &set) == -1) {
-//                    qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
-//                    abort();
-//                }
-//                attached = true;
-//            }
+            if (UNLIKELY(!attached)) {
+                cpu_set_t set;
+                CPU_ZERO(&set);
+                CPU_SET(own_id * 2, &set);
+                //dirty hard code
+                if (sched_setaffinity(0, sizeof(set), &set) == -1) {
+                    qLogFailfmt("RequestProcessor sched set affinity failed: %s", STRERR);
+                    abort();
+                }
+                attached = true;
+            }
             StartTimer(&t);
             ssize_t gv = reqmb.getOne(reinterpret_cast<char *>(rr), sizeof(RequestResponse), &cliun);
             tp->uds_rd += GetTimeElapsed(&t);
