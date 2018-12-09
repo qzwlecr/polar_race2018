@@ -35,7 +35,7 @@ namespace polar_race {
 
             if (head_index != last_head_index) {
                 writing.unlock();
-                qLogDebugfmt("Bucket[%d]::put: writing work is already done by other threads", id);
+                qLogInfofmt("Bucket[%d]::put: writing work is already done by other threads", id);
                 goto WRITING_BEGIN;
             }
 
