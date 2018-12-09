@@ -28,7 +28,9 @@ namespace polar_race {
 
         int id;
 
-        std::mutex writing;
+        std::mutex flushing;
+
+        std::mutex loading;
 
         std::atomic<uint64_t> done_number;
 
