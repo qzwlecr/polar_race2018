@@ -3,6 +3,7 @@
 
 #include "../syscalls/sys.h"
 #include <cstdint>
+#include <atomic>
 
 namespace polar_race {
 
@@ -26,6 +27,7 @@ namespace polar_race {
         private:
             aio_context_t ctx;
         public:
+            std::atomic_uint currqn;
             int setup(unsigned qdepth);
             int submit(AIOQuest& quest);
             int cancel(AIOQuest& quest, struct io_event* reslt);

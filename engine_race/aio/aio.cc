@@ -23,12 +23,16 @@ namespace polar_race {
     AIOQuest(IOCB_CMD_PWRITE, srcfd, buffer, nbytes, offset){}
 
     int AIOContext::setup(unsigned qdepth){
+        currqn = 0;
         return sys_aio_setup(qdepth, &ctx);
     }
 
     int AIOContext::submit(AIOQuest& quest){
         struct iocb * tmpptr = &(quest.cb);
-        return sys_aio_submit(ctx, 1, &tmpptr);
+        int srv = sys_aio_submit(ctx, 1, &tmpptr);
+        if(srv < 0) return srv;
+        currqn.fetch_add(1);
+        return srv;
     }
 
     int AIOContext::cancel(AIOQuest& quest, struct io_event* reslt){

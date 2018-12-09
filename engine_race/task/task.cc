@@ -37,6 +37,34 @@ namespace polar_race {
         qLogSucc("SelfCloser: Exiting Gracefully..");
     }
 
+    void AIOQueueCleaner(AIOContext* ctx, void (*cleanop)(uint64_t aiodata), bool* running){
+        qLogSucc("AIOQueueCleaner: Started");
+        while((*running) || (ctx->currqn != 0)){
+            struct io_event ioev = {0};
+            int gevrv = ctx->getevents(1, 1, &ioev, NULL);
+            if(gevrv != 1){
+                if(gevrv >= 0){
+                    qLogInfo("AIOQueueCleaner: Interrupted?");
+                    continue;
+                } else {
+                    qLogFailfmt("AIOQueueCleaner: io_getevents failed: %s", strerror(errno));
+                    abort();
+                }
+            }
+            auto wrq = (AIOWriteQuest*)(ioev.obj);
+            if(ioev.res < 0) {
+                qLogWarn("AIOQueueCleaner: previously submitted task failed:");
+                qLogWarnfmt("AIOQueueCleaner: fd %d, buffer %p, len %llu, offset %lld", wrq->cb.aio_fildes,
+                (void*)(wrq->cb.aio_buf), wrq->cb.aio_nbytes, wrq->cb.aio_offset);
+                qLogWarnfmt("AIOQueueCleaner: data %lld", ioev.data);
+            }
+            cleanop(ioev.data);
+            delete (AIOWriteQuest*)(ioev.obj);
+            ctx->currqn.fetch_sub(1);
+        }
+        qLogSucc("AIOQueueCleaner: Exiting Gracefully..");
+    }
+
     void HeartBeater(std::string sendaddr, bool *running) {
         qLogSuccfmt("HeartBeater: initialize %s", LDOMAIN(sendaddr.c_str()));
         MailBox hbmb;

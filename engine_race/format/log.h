@@ -9,8 +9,6 @@
 // usage example:
 // #define Q_LOG_LOGLEVEL 4
 // #include "zhwkre/log.h"
-namespace polar_race{
-
 #ifndef Q_LOG_LOGLEVEL
 #define Q_LOG_LOGLEVEL 20
 #endif
@@ -47,7 +45,5 @@ qfmtColorizerF(stderr,"[",tag,"]",color);qLogCurrTime();fprintf(stderr,fmtstr,__
 #define qLogWarnfmt(fmtstr, ...) qLogfmt(Q_LOG_WARN,"WARN",Q_COLOR_YELLOW,fmtstr,__VA_ARGS__)
 #define qLogFail(str) qLog(Q_LOG_FAIL,"FAIL",Q_COLOR_RED,str)
 #define qLogFailfmt(fmtstr, ...) qLogfmt(Q_LOG_FAIL,"FAIL",Q_COLOR_RED,fmtstr,__VA_ARGS__)
-
-};
 
 #endif

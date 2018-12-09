@@ -333,6 +333,8 @@ namespace polar_race {
                     }
                     std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
                     hbdtrd.detach();
+                    std::thread aiocleantrd(AIOQueueCleaner, &actx, flushDone, &running);
+                    aiocleantrd.detach();
                     struct sembuf sem_buf{
                             .sem_num = 0,
                             .sem_op = -1

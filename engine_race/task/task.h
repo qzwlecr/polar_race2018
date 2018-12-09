@@ -23,6 +23,8 @@ namespace polar_race {
 
     void HeartBeatChecker(std::string recvaddr);
 
+    // void AIOQueueCleaner(AIOContext* ctx, void (*cleanop)(uint64_t aiodata), bool* running){
+
     // Universal Tools
     void SelfCloser(int timeout, bool* running);
 };
