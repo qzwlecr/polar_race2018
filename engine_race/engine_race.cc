@@ -350,18 +350,18 @@ namespace polar_race {
         qLogDebugfmt("Engine::Write: K %hu => V %hu",
                      *reinterpret_cast<const uint16_t *>(key.data()),
                      *reinterpret_cast<const uint16_t *>(value.data()));
-        int curraff = CONCURRENT_QUERY;
-        int gav = sys_getaff(0, &curraff);
-        if (gav == -1) {
-            qLogWarnfmt("Engine::Write get affinity failed: %s", strerror(errno));
-        }
-        qLogDebugfmt("Engine::Write: affinity %d", curraff);
-        if (curraff == CONCURRENT_QUERY) {
+//        int curraff = CONCURRENT_QUERY;
+//        int gav = sys_getaff(0, &curraff);
+//        if (gav == -1) {
+//            qLogWarnfmt("Engine::Write get affinity failed: %s", strerror(errno));
+//        }
+//        qLogDebugfmt("Engine::Write: affinity %d", curraff);
+//        if (curraff == 4) {
             int newaffinity = (int) (newaff.fetch_add(1) % CONCURRENT_QUERY);
-            sys_setaff(0, newaffinity);
-            qLogSuccfmt("Engine::Write new affinity %d", newaffinity);
-            curraff = newaffinity;
-        }
+//            sys_setaff(0, newaffinity);
+//            qLogSuccfmt("Engine::Write new affinity %d", newaffinity);
+           int curraff = newaffinity;
+//        }
         RequestResponse rr = {0};
         memcpy(rr.key, key.data(), KEY_SIZE);
         memcpy(rr.value, value.data(), VAL_SIZE);

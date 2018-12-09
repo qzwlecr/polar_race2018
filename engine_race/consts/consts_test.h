@@ -10,14 +10,14 @@ namespace polar_race {
         MODE_MPROC_SEQ_WR = 0,
         MODE_MPROC_RAND_WR
     };
-    const std::size_t FILE_SIZE = 1ul * 1024 * 1024 * 1024;
+    const std::size_t FILE_SIZE = 500 * 1024 * 1024;
     const std::size_t KEY_SIZE = 8;
     const std::size_t VAL_SIZE = 4096;
-    const int CONCURRENT_QUERY = 1;
-    const int HANDLER_THREADS = 2;
+    const int CONCURRENT_QUERY = 64;
+    const int HANDLER_THREADS = 32;
     const float LOAD_FACTOR = 0.9f;
     const std::size_t HASH_MAP_SIZE = 640000;
-    const int BUCKET_NUMBER = 64;
+    const int BUCKET_NUMBER = 1;
     const int BUCKET_BUFFER_LENGTH = 128 * 4096;
     const int BUCKET_BACKUP_NUMBER = 64;
     const int FIRST_BUCKET_LENGTH = 4 * 1024 * 1024;
