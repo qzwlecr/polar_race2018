@@ -4,6 +4,7 @@
 
 namespace polar_race {
 
+    AIOContext actx;
     AIOQuest::AIOQuest(uint16_t iotype, uint32_t srcfd, uintptr_t buffer, uint64_t nbytes, int64_t offset){
         cb = {0};
         cb.aio_data = buffer;

@@ -14,6 +14,7 @@
 #include "bucket/bucket.h"
 #include "bucket/bucket_link_list.h"
 #include "rcache/rcache.h"
+#include "aio/aio.h"
 #include <thread>
 #include <atomic>
 
@@ -105,6 +106,8 @@ namespace polar_race {
             BenchMain(name);
         }
         qLogSuccfmt("Startup: EngineName %s", name.c_str());
+        actx.setup(AIO_WR_QDEPTH);
+        qLogSuccfmt("Startup: Linux AIO QueueDepth set to %d", AIO_WR_QDEPTH);
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if (access(VALUES_PATH.c_str(), R_OK | W_OK)) {
             qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());

@@ -33,6 +33,8 @@ namespace polar_race {
             int destroy();
     };
 
+    extern AIOContext actx;
+
 };
 
 #endif

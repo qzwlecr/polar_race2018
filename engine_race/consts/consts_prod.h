@@ -42,6 +42,7 @@ namespace polar_race {
     extern TimingProfile handtps[HANDLER_THREADS];
     const bool EXEC_MODE_BENCHMARK = false;
     const uint32_t RANGE_CACHE_SIZE = 1 * 1024 * 1024 * 1024;
+    const int AIO_WR_QDEPTH = 32;
 };
 
 #if defined(__GNUC__)
