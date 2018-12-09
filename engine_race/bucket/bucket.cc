@@ -17,6 +17,7 @@ namespace polar_race {
     Bucket *Buckets[BUCKET_NUMBER];
     char *BackupBuffer[BUCKET_BACKUP_NUMBER];
     std::atomic_bool BackupBufferU[BUCKET_BACKUP_NUMBER];
+    AIOQuest aioWriteQuests[BUCKET_BACKUP_NUMBER];
     std::atomic<uint8_t> BackupCount;
 
     Bucket::Bucket(int id) : head_index(0), next_index(0), id(id), done_number(0) {
@@ -66,9 +67,9 @@ namespace polar_race {
                         last_head_index,
                         next_head_index, num);
             flushing.unlock();
-            AIOQuest * wactx =
-                    new AIOWriteQuest((uint32_t) ValuesFd, (uintptr_t) BackupBuffer[num % BUCKET_BACKUP_NUMBER],
-                                      BUCKET_BUFFER_LENGTH, last_head_index);
+            AIOQuest *wactx = new(&(aioWriteQuests[num % BUCKET_BACKUP_NUMBER]))
+                    AIOWriteQuest((uint32_t) ValuesFd, (uintptr_t) BackupBuffer[num % BUCKET_BACKUP_NUMBER],
+                                  BUCKET_BUFFER_LENGTH, last_head_index);
             wactx->cb.aio_data = uint64_t(num % BUCKET_BACKUP_NUMBER);
             actx.submit(*wactx);
             goto PUT_BEGIN;
@@ -81,7 +82,10 @@ namespace polar_race {
     }
 
     Bucket::~Bucket() {
-//        flushBuffer(head_index, buffer, 0);
+        AIOQuest *wactx = new AIOWriteQuest((uint32_t) ValuesFd, (uintptr_t) buffer,
+                                            BUCKET_BUFFER_LENGTH, head_index);
+        wactx->cb.aio_data = 0;
+        actx.submit(*wactx);
         free(buffer);
     }
 

@@ -5,6 +5,7 @@
 #include <string>
 #include "../commu/commu.h"
 #include "../timer/timer.h"
+#include "aio/aio.h"
 
 namespace polar_race {
 
@@ -23,7 +24,7 @@ namespace polar_race {
 
     void HeartBeatChecker(std::string recvaddr);
 
-    // void AIOQueueCleaner(AIOContext* ctx, void (*cleanop)(uint64_t aiodata), bool* running){
+    void AIOQueueCleaner(AIOContext* ctx, void (*cleanop)(uint64_t aiodata), bool* running);
 
     // Universal Tools
     void SelfCloser(int timeout, bool* running);

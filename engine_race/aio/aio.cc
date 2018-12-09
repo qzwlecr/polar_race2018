@@ -16,6 +16,10 @@ namespace polar_race {
         cb.aio_flags = 0;
     }
 
+    AIOQuest::AIOQuest() {
+
+    }
+
     AIOReadQuest::AIOReadQuest(uint32_t srcfd, uintptr_t buffer, uint64_t nbytes, int64_t offset):
     AIOQuest(IOCB_CMD_PREAD, srcfd, buffer, nbytes, offset){}
 

@@ -106,8 +106,6 @@ namespace polar_race {
             BenchMain(name);
         }
         qLogSuccfmt("Startup: EngineName %s", name.c_str());
-        actx.setup(AIO_WR_QDEPTH);
-        qLogSuccfmt("Startup: Linux AIO QueueDepth set to %d", AIO_WR_QDEPTH);
         qLogInfofmt("Startup: Checking %s existence", VALUES_PATH.c_str());
         if (access(VALUES_PATH.c_str(), R_OK | W_OK)) {
             qLogInfofmt("Startup: Not exist: CREATING %s", VALUES_PATH.c_str());
@@ -333,6 +331,8 @@ namespace polar_race {
                     }
                     std::thread hbdtrd(HeartBeatChecker, HB_ADDR);
                     hbdtrd.detach();
+                    actx.setup(AIO_WR_QDEPTH);
+                    qLogSuccfmt("RequestHandler: Linux AIO QueueDepth set to %d", AIO_WR_QDEPTH);
                     std::thread aiocleantrd(AIOQueueCleaner, &actx, flushDone, &running);
                     aiocleantrd.detach();
                     struct sembuf sem_buf{

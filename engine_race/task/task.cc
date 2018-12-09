@@ -59,7 +59,6 @@ namespace polar_race {
                 qLogWarnfmt("AIOQueueCleaner: data %lld", ioev.data);
             }
             cleanop(ioev.data);
-            delete (AIOWriteQuest*)(ioev.obj);
             ctx->currqn.fetch_sub(1);
         }
         qLogSucc("AIOQueueCleaner: Exiting Gracefully..");
@@ -116,6 +115,7 @@ namespace polar_race {
                 qLogFail("HeartBeatChecker: Timed out.");
                 ExitSign = true;
                 // do clean work
+                while(actx.currqn > 0);
                 for (int i = 0; i < BUCKET_NUMBER; i++) {
                     delete Buckets[i];
                 }
